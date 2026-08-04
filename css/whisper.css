@@ -1,0 +1,131 @@
+/* ============================================================
+   WHISPERING AT TRIBAL
+
+   Deliberately claustrophobic. Tribal council is already the darkest screen in
+   the game; this is that screen with the walls closer in. Everything is small,
+   low-contrast and slightly cramped, because everyone on that bench is trying not
+   to be heard while ten other people listen.
+
+   Contrast this with the pact meeting (css/circle.css), which is a bright panel on
+   paper: that is a conversation you arranged, in daylight, on purpose. This one is
+   happening to you in the dark.
+   ============================================================ */
+
+.wh-head { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.wh-tag {
+  flex: 0 0 auto;
+  font-family: var(--font-display); font-weight: 800; letter-spacing: 2px;
+  font-size: clamp(0.5em, 1.5vmin, 0.78em);
+  padding: 2px 7px; border-radius: 3px;
+  background: var(--ember); color: var(--indigo);
+  border: 2px solid var(--ink);
+}
+/* The bench: everybody at the council, so you can see the shape of the room. */
+.wh-bench { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 3px; justify-content: flex-end; }
+.wh-seat {
+  padding: 1px 5px; border-radius: 3px;
+  background: rgba(250, 246, 236, 0.14);
+  border: 1px solid rgba(250, 246, 236, 0.45);
+  border-left: 4px solid var(--t-color, var(--cream));
+  color: var(--cream);
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(0.42em, 1.25vmin, 0.62em);
+  white-space: nowrap;
+}
+.wh-seat.me { background: var(--ember); color: var(--indigo); border-color: var(--ink); }
+
+/* ---- the transcript ---- */
+.wh-convo {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 4px; padding: 4px 2px;
+}
+.wh-turn {
+  padding: 4px 8px; border-radius: 4px;
+  background: rgba(250, 246, 236, 0.09);
+  border-left: 3px solid rgba(250, 246, 236, 0.5);
+  color: var(--cream);
+  animation: wh-in 200ms ease;
+}
+@keyframes wh-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.wh-turn.me { background: rgba(217, 118, 44, 0.30); border-left-color: var(--ember); }
+.wh-turn.them { border-left-color: var(--ocean); }
+/* Staging is the narrator: no bubble, italic, quieter. */
+.wh-turn.stage {
+  background: transparent; border-left: none; padding-left: 2px;
+  font-style: italic; opacity: 0.78;
+}
+/* Peff, who is watching and enjoying it. */
+.wh-turn.peff {
+  background: rgba(90, 168, 190, 0.16); border-left-color: var(--ocean);
+  font-style: italic;
+}
+/* A fragment the player only half-caught. Genuinely harder to read, on purpose. */
+.wh-turn.faint {
+  background: transparent; border-left: none;
+  opacity: 0.52; font-style: italic; letter-spacing: 0.3px;
+}
+.wh-who {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.58em; text-transform: uppercase; letter-spacing: 1px;
+  opacity: 0.7;
+}
+.wh-text { font-size: 0.86em; line-height: 1.3; }
+
+/* ---- choices ---- */
+.wh-choices { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; }
+.wh-choices > .btn { min-height: 34px; font-size: 0.76em; }
+.wh-next { align-self: flex-start; min-width: 3em; opacity: 0.7; }
+/* Picking who to lean over to. A grid, because on a phone a column of eleven
+   names does not fit and scrolling mid-whisper breaks the moment. */
+.wh-people { display: flex; flex-wrap: wrap; gap: 4px; }
+.wh-person {
+  flex: 1 1 auto; min-width: 6.5em;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0;
+  padding: 3px 6px; min-height: 34px;
+  border-left: 5px solid var(--t-color, var(--ink)) !important;
+  text-align: left;
+}
+.wh-person-name { font-family: var(--font-display); font-weight: 800; font-size: 0.88em; }
+
+/* ---- the idol beat's silence ----
+   Peff asks at every council, and this is the answer: nothing. The most repeated
+   screen in the game, so it has to carry weight without being tiring — one very
+   large ellipsis, one quiet line, and a lot of empty space.
+
+   The Peff tag is hidden for this beat: the silence belongs to the room, and
+   labelling it "Peff" would credit it to the one person who is talking. */
+#screen-finale.silent-beat .peff-line { display: none; }
+.idol-dots {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(46px, 16vmin, 130px);
+  line-height: 0.7;
+  letter-spacing: 6px;
+  color: var(--cream);
+  opacity: 0.9;
+  /* Drifts in slowly. A pause that snaps into place is not a pause. */
+  animation: idol-dots-in 900ms ease both;
+}
+@keyframes idol-dots-in {
+  from { opacity: 0; letter-spacing: 22px; }
+  to { opacity: 0.9; letter-spacing: 6px; }
+}
+/* An unattributed beat — a confrontation on the beach, not a line from the host. */
+.scene-line {
+  font-size: 1.02em; line-height: 1.45; text-align: center;
+  color: var(--cream); max-width: 30em;
+}
+.idol-silence {
+  font-size: 0.9em; line-height: 1.4; text-align: center;
+  color: var(--cream); opacity: 0;
+  max-width: 26em;
+  animation: idol-silence-in 600ms 700ms ease both;
+}
+@keyframes idol-silence-in { from { opacity: 0; } to { opacity: 0.78; } }
+
+/* A vote an idol has cancelled. Still read out — that is the whole point of an
+   idol — but visibly struck through so the tally makes sense. */
+.vote-parchment.voided {
+  text-decoration: line-through;
+  opacity: 0.55;
+  transform: rotate(-3deg);
+}

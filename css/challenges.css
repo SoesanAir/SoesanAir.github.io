@@ -1,0 +1,304 @@
+/* ============================================================
+   CHALLENGE MINIGAMES — arena, widgets and juice.
+   Juice rules follow the game-feel skill: transient exaggeration, eased motion,
+   overshoot for pops, decaying shake on a WRAPPER only.
+   ============================================================ */
+#chal-game { display: none; position: absolute; inset: 0; z-index: 45; background: rgba(29, 27, 22, 0.55); }
+#chal-game.open { display: flex; align-items: center; justify-content: center; }
+.cg-frame {
+  position: relative; overflow: hidden;
+  width: min(96%, 760px); max-height: 94%;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 12px 10px;
+  background: var(--paper); color: var(--ink);
+  border: var(--outline) solid var(--ink); border-radius: var(--radius-big);
+  box-shadow: 5px 5px 0 rgba(29, 27, 22, 0.5);
+  will-change: transform;
+}
+.cg-head { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.cg-name { font-family: var(--font-display); font-weight: 800; text-transform: uppercase; letter-spacing: 0.8px; font-size: 0.9em; }
+.cg-timer { flex: 1; height: 9px; background: rgba(29, 27, 22, 0.15); border: 2px solid var(--ink); border-radius: 3px; overflow: hidden; }
+.cg-timer > i { display: block; height: 100%; width: 100%; background: var(--ember); }
+.cg-score {
+  font-family: var(--font-display); font-weight: 800; font-size: 1.15em;
+  min-width: 2.2em; text-align: right; background: var(--ink); color: var(--paper);
+  padding: 1px 7px; border-radius: 3px;
+}
+.cg-arena {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden;
+  display: flex; flex-direction: column; gap: 7px; padding: 2px;
+}
+.cg-arena.cg-frozen { filter: brightness(1.7) saturate(0.3); }
+.cg-how { flex: 0 0 auto; font-size: 0.72em; opacity: 0.7; line-height: 1.25; }
+.cg-countdown {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display); font-weight: 800; font-size: clamp(40px, 12vmin, 90px);
+  color: var(--paper);
+  text-shadow: 0 4px 0 var(--ink), 4px 0 0 var(--ink), -4px 0 0 var(--ink), 0 -4px 0 var(--ink);
+  background: rgba(29, 27, 22, 0.35); z-index: 30; pointer-events: none;
+}
+.cg-row { display: flex; gap: 7px; justify-content: center; }
+.cg-b { min-height: 44px; padding: 8px 14px; font-size: 0.95em; }
+.cg-wide { width: 100%; }
+.cg-b.struck { text-decoration: line-through; opacity: 0.4; }
+
+/* ---- lanes, gauges, meters ---- */
+.cg-lane { position: relative; height: 42px; background: rgba(29, 27, 22, 0.10); border: 2px solid var(--ink); border-radius: 6px; }
+.cg-lane.thin { height: 26px; }
+.cg-lane-safe { position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%); background: rgba(74, 143, 95, 0.30); }
+.cg-dot { position: absolute; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: var(--ember); border: 2px solid var(--ink); }
+.cg-gauge { height: 90px; border: 2px solid var(--ink); border-radius: 6px; background: rgba(90, 168, 190, 0.18); display: flex; align-items: flex-end; overflow: hidden; }
+.cg-gauge-fill { width: 100%; height: 0%; background: var(--bad); transition: height 90ms linear; }
+.cg-warn { font-size: 0.82em; font-weight: 700; text-align: center; min-height: 1.2em; }
+.cg-warn.hot { color: var(--bad); }
+.cg-beat { display: flex; justify-content: center; padding: 4px 0; }
+.cg-pulse { width: 44px; height: 44px; border-radius: 50%; background: var(--ocean); border: 3px solid var(--ink); }
+.cg-pot { font-family: var(--font-display); font-weight: 800; font-size: clamp(30px, 9vmin, 62px); text-align: center; }
+.cg-pot.hot { color: var(--bad); }
+.cg-bidbar { height: 10px; background: rgba(29, 27, 22, 0.15); border: 2px solid var(--ink); border-radius: 3px; overflow: hidden; }
+.cg-bidbar > i { display: block; height: 100%; background: var(--good); transition: width 200ms ease; }
+.cg-eq { font-family: var(--font-display); font-weight: 800; font-size: 1.4em; text-align: center; letter-spacing: 2px; }
+.cg-clue { font-size: 0.85em; line-height: 1.3; }
+
+/* ---- grids ---- */
+.cg-stones, .cg-grid3, .cg-grid4, .cg-grid5 { display: grid; gap: 5px; justify-content: center; }
+.cg-stones { grid-template-columns: repeat(3, 1fr); max-width: 320px; margin: 0 auto; }
+.cg-grid3 { grid-template-columns: repeat(3, 1fr); max-width: 300px; margin: 0 auto; }
+.cg-grid4 { grid-template-columns: repeat(4, 1fr); max-width: 300px; margin: 0 auto; }
+.cg-grid5 { grid-template-columns: repeat(5, 1fr); max-width: 380px; margin: 0 auto; }
+.cg-stone, .cg-cell, .cg-tile, .cg-pad {
+  aspect-ratio: 1; min-height: 32px;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 5px;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.78em; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+.cg-stone.lit, .cg-pad.lit { background: var(--ember); }
+.cg-cell.hot { background: var(--bad); color: var(--paper); }
+.cg-cell.warm { background: var(--warn); }
+.cg-cell.cold { background: #B9C4C9; }
+.cg-cell.hit { background: var(--good); color: var(--paper); }
+.cg-cell.lit { background: var(--ember); }
+.cg-tile.gap { background: transparent; border-style: dashed; }
+.cg-tile.ok { background: rgba(74, 143, 95, 0.35); }
+.cg-grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 94px)); gap: 6px; justify-content: center; }
+.cg-grid-cards .cast-card { width: auto; }
+
+/* ---- letters and keys ---- */
+.cg-slots { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.cg-slot {
+  min-width: 26px; height: 34px; padding: 0 4px;
+  border-bottom: 3px solid var(--ink);
+  font-family: var(--font-display); font-weight: 800; font-size: 1.1em;
+  display: flex; align-items: center; justify-content: center;
+}
+.cg-slot.given { color: var(--ocean-deep); }
+.cg-keys { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+.cg-key {
+  min-width: 26px; min-height: 30px;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 4px;
+  font-family: var(--font-display); font-weight: 700; font-size: 0.8em; cursor: pointer;
+}
+.cg-key:disabled { opacity: 0.3; }
+.cg-key.hinted { background: var(--warn); }
+
+/* ---- log carry: the log tips, the next foot lights, the beat approaches ----
+   Everything here exists to answer a playtest complaint that the game gave the
+   player nothing to read. The three states a step button can be in are
+   deliberately far apart: asleep (flat), yours (ember, raised), and NOW (green).
+   A player should be able to tell them apart at arm's length in sunlight. */
+.cg-logrig {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 74px; padding: 6px 0;
+}
+.cg-log {
+  position: relative; width: min(78%, 340px); height: 26px;
+  background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 13px;
+  transform-origin: center center;
+  transition: transform 90ms linear;
+}
+.cg-log-grain {
+  position: absolute; inset: 5px 12px;
+  border-top: 2px solid rgba(29, 27, 22, 0.28);
+  border-bottom: 2px solid rgba(29, 27, 22, 0.18);
+  border-radius: 8px;
+}
+.cg-log.dropped { transition: transform 320ms cubic-bezier(.3, 1.2, .5, 1); transform: rotate(84deg) translateY(26px); }
+.cg-steprow .cg-step {
+  position: relative; overflow: hidden;
+  flex: 1 1 0; max-width: 190px; min-height: 56px;
+  opacity: 0.42; filter: saturate(0.25);
+  transition: opacity 120ms ease, filter 120ms ease, transform 120ms ease;
+}
+.cg-steprow .cg-step.want {
+  opacity: 1; filter: none;
+  background: var(--ember);
+  transform: translateY(-2px);
+}
+.cg-steprow .cg-step.now { background: var(--good); color: var(--paper); }
+.cg-step-label { position: relative; z-index: 2; }
+/* The approach bar: fills from nothing to full as the step arrives, so the beat
+   can be anticipated rather than merely reacted to. */
+.cg-step-fill {
+  position: absolute; left: 0; bottom: 0; height: 6px; width: 0%;
+  background: var(--ink); opacity: 0.55; z-index: 1;
+}
+
+/* ---- tower and night watch ---- */
+.cg-tower {
+  display: flex; flex-direction: column-reverse; align-items: center; min-height: 86px;
+  transform-origin: bottom center; transition: transform 200ms cubic-bezier(.2, 1.4, .4, 1);
+}
+.cg-tower.fell { transform: rotate(74deg) translateY(20px); }
+.cg-bag { width: 60px; height: 13px; background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 3px; margin-top: -2px; }
+.cg-night {
+  position: relative; height: 150px; overflow: hidden;
+  background: linear-gradient(180deg, var(--indigo), var(--violet));
+  border: 2px solid var(--ink); border-radius: 6px;
+}
+.cg-mark {
+  position: absolute; width: 30px; height: 30px; margin: -15px 0 0 -15px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 800; cursor: pointer; border: 2px solid var(--ink);
+}
+.cg-mark.real { background: var(--cream); color: var(--ink); }
+.cg-mark.decoy { background: rgba(58, 39, 87, 0.85); color: var(--violet-soft); }
+
+/* ============================================================
+   THE TRIBE RAILS — who is carrying this challenge, live.
+
+   Two columns flanking the arena. Vertical position IS the standing: top of the
+   rail is leading, bottom is losing it for their tribe. Order is set by CSS so
+   the frame sits between the rails regardless of what order they were appended.
+   ============================================================ */
+#chal-game.open.railed { gap: clamp(2px, 1vmin, 10px); }
+#chal-game.railed .cg-frame { order: 1; width: min(72%, 560px); }
+.cg-rail {
+  position: relative; order: 0;
+  flex: 0 0 auto; width: clamp(52px, 13vmin, 112px);
+  height: 86%; align-self: center;
+  display: flex; flex-direction: column;
+}
+.cg-rail.right { order: 2; }
+.cg-rail-tag {
+  flex: 0 0 auto; text-align: center;
+  font-family: var(--font-display); font-weight: 800; letter-spacing: 1px;
+  font-size: clamp(0.42em, 1.35vmin, 0.68em);
+  padding: 1px 2px; border-radius: 3px 3px 0 0;
+  background: var(--t-color, var(--ink)); color: var(--t-on, var(--paper));
+  border: 2px solid var(--ink); border-bottom: none;
+  white-space: nowrap; overflow: hidden;
+}
+.cg-rail-tag:empty { visibility: hidden; }
+.cg-rail-track {
+  position: relative; flex: 1 1 auto; min-height: 0;
+  background: rgba(250, 246, 236, 0.30);
+  border: 2px solid var(--ink); border-radius: 0 0 5px 5px;
+}
+/* A chip is placed by its `top` percentage, so the transition has to be on
+   transform only — animating `top` at 60fps would thrash layout for every
+   castaway on screen. The easing lives in the JS position smoothing instead. */
+.cg-chip {
+  position: absolute; left: 2px; right: 2px;
+  margin-top: -9px;
+  padding: 1px 3px; border-radius: 3px;
+  background: var(--paper); color: var(--ink);
+  border: 2px solid var(--ink);
+  border-left: 5px solid var(--t-color, var(--ink));
+  font-family: var(--font-display); font-weight: 700;
+  font-size: clamp(0.38em, 1.25vmin, 0.62em);
+  line-height: 1.35; text-align: left;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: transform 160ms ease, background 200ms ease;
+}
+.cg-chip.me { background: var(--ember); }
+.cg-chip.lead { transform: scale(1.10); box-shadow: 2px 2px 0 rgba(29, 27, 22, 0.45); }
+.cg-chip.trail { opacity: 0.62; }
+
+/* ---- once the result is in, the briefing goes away ----
+   The description and the minigame's rules are pre-challenge information: "HOLD to
+   grip, tap LEFT / RIGHT to stay centred" is worth three lines of a small screen
+   before you play and nothing at all afterwards. Hiding both when the result
+   arrives is what actually got this screen back inside the viewport — the standings
+   were only half the overflow. */
+#screen-challenge.resulting #chal-desc,
+#screen-challenge.resulting #chal-stats { display: none; }
+/* The header can give a little back too, once it is a result and not a billing. */
+#screen-challenge.resulting #chal-title { font-size: 1.15em !important; }
+/* And the outer spacing tightens, which is the last few pixels needed to bring the
+   worst case (a nine-strong losing tribe) inside a 344px viewport. */
+#screen-challenge.resulting > div { gap: 8px !important; }
+#screen-challenge.resulting .panel { padding: 10px 16px !important; }
+
+/* ---- the same information, kept on the summary screen ----
+   Compact on purpose. This block used to list the whole field and pushed the
+   Continue button off the screen; it now shows the podium, the player and whoever
+   is being called out, and the row height is set so five or six of them still
+   leave room for the rest of the panel. */
+.chal-standings { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.cs-head { display: flex; align-items: baseline; gap: 8px; }
+.cs-rank-note {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.66em; letter-spacing: 0.5px;
+  background: var(--ember); color: var(--indigo);
+  padding: 0 5px; border-radius: 3px;
+}
+.cs-row {
+  display: flex; align-items: center; gap: 5px;
+  padding: 1px 5px; border-radius: 3px;
+  border-left: 5px solid var(--t-color, var(--ink));
+  background: rgba(29, 27, 22, 0.05);
+}
+.cs-row.me { background: rgba(217, 118, 44, 0.22); }
+/* The finishing position. The single most useful thing on the row — a bar four
+   fifths as long as the leader's does not tell you that you came seventh. */
+.cs-pos {
+  flex: 0 0 auto; min-width: 1.4em; text-align: right;
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.72em; opacity: 0.6;
+}
+.cs-name { flex: 0 0 auto; min-width: 5.5em; font-size: 0.76em; font-weight: 700; }
+/* Where rows were dropped. The list must never pretend to be the whole field. */
+.cs-gap {
+  font-size: 0.58em; opacity: 0.5; padding-left: 2.2em; font-style: italic;
+}
+.cs-bar {
+  flex: 1 1 auto; height: 9px;
+  background: rgba(29, 27, 22, 0.12);
+  border: 2px solid var(--ink); border-radius: 3px; overflow: hidden;
+}
+.cs-bar > i { display: block; height: 100%; background: var(--t-color, var(--ocean)); }
+.cs-tag {
+  flex: 0 0 auto; font-size: 0.6em; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 1px 4px; border-radius: 3px;
+  background: var(--ink); color: var(--paper);
+}
+
+/* ---- juice: all transient, all eased ---- */
+.cj-flash { position: absolute; inset: 0; pointer-events: none; z-index: 40; animation: cj-flash-out linear forwards; }
+@keyframes cj-flash-out { from { opacity: 1; } to { opacity: 0; } }
+.cj-float {
+  position: absolute; z-index: 42; pointer-events: none;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.95em;
+  color: var(--good); text-shadow: 0 2px 0 var(--ink);
+  animation: cj-float-up 900ms cubic-bezier(.2, .9, .3, 1) forwards;
+}
+.cj-float.bad { color: var(--bad); }
+@keyframes cj-float-up {
+  from { opacity: 1; transform: translate(-50%, 0) scale(0.8); }
+  30% { opacity: 1; transform: translate(-50%, -14px) scale(1.15); }
+  to { opacity: 0; transform: translate(-50%, -40px) scale(1); }
+}
+.cj-part {
+  position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; z-index: 41;
+  background: var(--ember); border-radius: 50%; pointer-events: none;
+  animation: cj-part-out 600ms cubic-bezier(.2, .8, .3, 1) forwards;
+}
+@keyframes cj-part-out {
+  from { opacity: 1; transform: translate(0, 0) scale(1); }
+  to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+}
+/* Respect the motion preference the game already exposes. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .cg-frame { transform: none !important; }
+  html:not(.motion-full) .cj-part { display: none; }
+}

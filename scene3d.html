@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Castaway — 2.5D scene test</title>
+<style>
+  /* Standalone on purpose. This page does not load the game's CSS or JS, so
+     nothing here can affect a real season — it is a look-and-framerate test you
+     can open on a phone and judge. */
+  html, body { margin: 0; height: 100%; background: #0b0a14; overflow: hidden;
+    font-family: system-ui, -apple-system, sans-serif; color: #f4e9d8;
+    -webkit-user-select: none; user-select: none; }
+  canvas { display: block; touch-action: none; }
+  #hud { position: fixed; left: 8px; top: 8px; z-index: 5; font-size: 12px;
+    background: rgba(8,6,14,.72); padding: 7px 10px; border-radius: 7px;
+    line-height: 1.55; pointer-events: none; }
+  #hud b { color: #E8873A; }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    display: flex; gap: 6px; padding: 8px; justify-content: center; flex-wrap: wrap; }
+  button { background: #E8873A; color: #241a2e; border: 2px solid #241a2e;
+    border-radius: 7px; padding: 9px 13px; font-size: 13px; font-weight: 700;
+    box-shadow: 0 3px 0 rgba(0,0,0,.55); }
+  button.alt { background: #d8c9a8; }
+  #load { position: fixed; inset: 0; display: grid; place-items: center; z-index: 9;
+    background: #0b0a14; font-size: 15px; text-align: center; padding: 20px; }
+</style>
+</head>
+<body>
+<div id="load">loading island…<br><span id="pct" style="opacity:.6;font-size:12px"></span></div>
+<div id="hud">
+  <div><b>fps</b> <span id="fps">–</span> · <b>draws</b> <span id="dc">–</span> · <b>tris</b> <span id="tri">–</span></div>
+  <div><b>drag</b> orbit · <b>pinch</b> zoom · <b>tap ground</b> walk</div>
+  <div id="zone" style="opacity:.7"></div>
+</div>
+<div id="bar">
+  <button id="b-walk">Walk the island</button>
+  <button id="b-day" class="alt">Dusk</button>
+  <button id="b-cam" class="alt">Camera: follow</button>
+  <button id="b-re" class="alt">Re-roll</button>
+</div>
+
+<script type="module">
+import * as THREE from './vendor/three/three.module.js';
+import { GLTFLoader } from './vendor/three/loaders/GLTFLoader.js';
+import { OrbitControls } from './vendor/three/controls/OrbitControls.js';
+
+/* ============================================================
+   What this is testing, precisely.
+
+   Three claims from the plan needed proving before committing to a 3D island:
+
+   1. That the bundle's FBX props load and look right in a browser at all, using
+      the pack's single shared atlas rather than per-model textures.
+   2. That the existing 6-part PAPER-DOLL castaways can live inside a real 3D
+      scene and be correctly OCCLUDED by geometry — walk behind a rock and the
+      rock covers you. That is the thing a DOM overlay can never do, and it is
+      the whole reason to move them into the scene.
+   3. That a mid phone holds a playable framerate. The fps counter is the point.
+
+   Deliberately NOT here: any connection to the game. No sim, no save, no CSS
+   from the real build. If this looks wrong it costs nothing.
+   ============================================================ */
+
+const MODELS = './assets/scene3d/models/';
+/* Read from the pipeline's own index instead of a hardcoded list. The hardcoded
+   version drifted the moment the manifest changed: Campfire and Wood_Crate moved to
+   the BUILT set when the beach became natural, and Palm_Tree_06A was never in the
+   curated six — so the demo 404'd on three props and silently showed a thinner
+   island than the game does. */
+const PROPS = await fetch('./assets/scene3d/props.json')
+  .then(r => r.json())
+  .then(j => (j.scenes || j).island.slice(0, 26))
+  .catch(() => ['Palm_Tree_01A', 'Rock_Large_01A', 'Bush_02A']);
+
+/* The island's zones, ids identical to ZONES in js/beach.js — this is the mapping
+   a real integration would use, so the sim's zone NAMES keep working untouched.
+   x is metres along the shore; the strip becomes a place. */
+const ZONES = [
+  { id: 'Ocean_Left',      label: 'Ocean',        x: -46, kind: 'ocean' },
+  { id: 'Beach_Left',      label: 'Beach',        x: -34, kind: 'beach' },
+  { id: 'Forest_Deep',     label: 'Deep Forest',  x: -24, kind: 'deep' },
+  { id: 'Camp',            label: 'Camp',         x: -12, kind: 'camp' },
+  { id: 'FirePit',         label: 'Fire Pit',     x:  -2, kind: 'fire' },
+  { id: 'Shelter',         label: 'Shelter',      x:   8, kind: 'shelter' },
+  { id: 'Well',            label: 'The Well',     x:  18, kind: 'well' },
+  { id: 'Forest_Grove',    label: 'Grove',        x:  28, kind: 'forest' },
+  { id: 'Rocky',           label: 'Rocks',        x:  38, kind: 'rocky' },
+  { id: 'Treemail',        label: 'Treemail',     x:  48, kind: 'mail' },
+  { id: 'Beach_Right',     label: 'Far Beach',    x:  58, kind: 'beach' }
+];
+
+/* Seeded RNG so "Re-roll" is reproducible and a season could pin its layout to
+   GAME.seed exactly the way the rest of the game does. */
+let seed = 1337;
+const rng = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+const rr = (a, b) => a + rng() * (b - a);
+const pick = a => a[Math.floor(rng() * a.length)];
+
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x8fd0e8);
+scene.fog = new THREE.Fog(0x8fd0e8, 60, 190);
+
+/* Framing. The first pass put the camera at y 9 / z 26 and it sat INSIDE the palm
+   back-wall with no sky in frame — the island read as a green tunnel. Higher and
+   further out, looking slightly down the shore, so you can see the strip of beach
+   the whole game takes place on. */
+const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.4, 420);
+camera.position.set(-6, 15, 40);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(-12, 1.6, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.minDistance = 6;
+controls.maxDistance = 70;
+controls.maxPolarAngle = Math.PI * 0.495;   // never under the ground plane
+
+/* Light rig. Toon assets want a strong key, a warm bounce and very little else —
+   the pack does its own shading through the atlas. */
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.15);
+sun.position.set(-26, 34, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 130;
+sun.shadow.camera.left = -70; sun.shadow.camera.right = 70;
+sun.shadow.camera.top = 50; sun.shadow.camera.bottom = -50;
+sun.shadow.bias = -0.0012;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfe6ff, 0xc79a5e, 0.85));
+
+/* ---------- ground: sand shelf, water, and a low ridge behind ---------- */
+const sand = new THREE.Mesh(
+  new THREE.PlaneGeometry(220, 62, 1, 1),
+  new THREE.MeshLambertMaterial({ color: 0xe4c893 })
+);
+sand.rotation.x = -Math.PI / 2;
+sand.position.z = -8;
+sand.receiveShadow = true;
+scene.add(sand);
+
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(320, 150),
+  new THREE.MeshLambertMaterial({ color: 0x3fa9c9, transparent: true, opacity: 0.9 })
+);
+water.rotation.x = -Math.PI / 2;
+water.position.set(0, -0.35, 52);
+scene.add(water);
+
+/* A low inland ridge to close the island off. Was 26 units tall at y 8, which
+   filled the top of the frame with a flat green wall and hid the sky entirely.
+   Short, and pushed far enough back that the fog softens it into a horizon. */
+const ridge = new THREE.Mesh(
+  new THREE.PlaneGeometry(260, 11),
+  new THREE.MeshBasicMaterial({ color: 0x3d7d55, fog: true })
+);
+ridge.position.set(0, 3.2, -56);
+scene.add(ridge);
+
+/* ============================================================
+   Load the atlas, then the props.
+   The pack ships ONE 4096 atlas for hundreds of models, downscaled here to a
+   1024 WebP at 221KB. That single fact is what makes this viable on a phone:
+   every prop below shares one texture and one material.
+   ============================================================ */
+const loadEl = document.getElementById('load'), pctEl = document.getElementById('pct');
+
+/* three.js loaders reject with a ProgressEvent, which stringifies to the useless
+   word "Event" — a failed asset produced a dead loading screen and a console line
+   that named neither the file nor the reason. Surface it on screen and in the log
+   so the harness and a human both learn which URL died. */
+addEventListener('unhandledrejection', e => {
+  const r = e.reason;
+  const url = r && (r.target && (r.target.src || r.target.responseURL) || r.currentTarget && r.currentTarget.responseURL);
+  const msg = 'ASSET FAILED: ' + (url || (r && r.message) || 'unknown');
+  console.warn(msg);
+  if (document.getElementById('load')) document.getElementById('load').textContent = msg;
+});
+
+const texLoad = u => new THREE.TextureLoader().loadAsync(u)
+  .catch(() => { throw new Error(u + ' failed to load'); });
+
+/* THE ATLAS IS TWO THINGS AT ONCE, and missing that broke every solid prop.
+   Most of TAI_Atlas_1A is vegetation — fronds, leaves, bark, bushes. But the
+   bottom-left corner holds a strip of ~30 flat COLOUR SWATCHES about 20px wide,
+   and every non-vegetation model in the pack UV-maps to a single pixel inside one
+   of those bars. That is how a rock is grey and a barrel is brown with no texture
+   of their own.
+
+   So the atlas must be downscaled with NEAREST. The first attempt used LANCZOS,
+   which averages neighbouring swatches together — the large rock came out solid
+   black and palm logs came out bright green, because both were sampling a blend of
+   two unrelated palette entries. Filtering has to be off on the GPU side for the
+   same reason. */
+const tex = await texLoad('./assets/scene3d/atlas_TAI.webp')   /* renamed when every pack got its own atlas */;
+tex.colorSpace = THREE.SRGBColorSpace;
+/* flipY TRUE, which is three.js's default and was the second half of the bug.
+   Measured with __scene3d.uv(): Rock_Large_01A samples u 0-0.041, v 0-0.011 — a
+   single swatch in the palette strip at the atlas's bottom-left. With flipY false,
+   v≈0 addresses the TOP row of the image, which is dark foliage, so the rock came
+   out black and the crate came out leaf-green. The palms hid this because they span
+   u 0.01-1.0 and v 0.08-1.0, so flipping them just swapped one frond for another
+   and still looked plausible. */
+tex.flipY = true;
+tex.magFilter = THREE.NearestFilter;
+tex.minFilter = THREE.LinearMipmapLinearFilter;
+tex.generateMipmaps = true;
+const atlasMat = new THREE.MeshLambertMaterial({ map: tex });
+const atlasCut = new THREE.MeshLambertMaterial({ map: tex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+
+/* Grass and flower patches ship their OWN textures and are not in the atlas at
+   all — pointing them at it made them bright green cards sampling leaf UVs. */
+const grassTex = await texLoad('./assets/scene3d/grass.webp');
+grassTex.colorSpace = THREE.SRGBColorSpace;
+grassTex.flipY = true;   /* same correction as the atlas */
+const grassMat = new THREE.MeshLambertMaterial({ map: grassTex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+
+/* GLB now, not FBX. The asset pipeline (tools/fbx2glb.js) converts once, offline —
+   FBX took seconds per model to parse and the files were twice the size. */
+const fbx = new GLTFLoader();
+const lib = {};
+let done = 0;
+for (const name of PROPS) {
+  try {
+    /* One retry. A prop that fails to fetch does not throw an error the player
+       would ever see — it just silently is not in the world, which is the worst
+       kind of bug to chase later. Observed once on a cold dev server. */
+    let g = null;
+    for (let attempt = 0; attempt < 2 && !g; attempt++) {
+      try { g = (await fbx.loadAsync(MODELS + name + '.glb')).scene; }
+      catch (err) { if (attempt) throw err; await new Promise(r => setTimeout(r, 250)); }
+    }
+    /* Three materials, and which one a prop gets is not cosmetic:
+         grassMat  — grass patches, which have their own texture
+         atlasCut  — foliage: needs alpha and two sides or fronds vanish edge-on
+         atlasMat  — everything solid. Cheapest, and alpha on a rock buys nothing
+                     but fill rate. */
+    const isGrass = /Grass_Patch|Flowers/i.test(name);
+    const cut = /Bush|Plant|Net|Cloth|Palm_Tree/i.test(name);
+    g.traverse(o => {
+      if (o.isMesh) {
+        o.material = isGrass ? grassMat : cut ? atlasCut : atlasMat;
+        o.castShadow = !isGrass;      /* grass cards self-shadow into mush */
+        o.receiveShadow = true;
+      }
+    });
+    /* No scale normalisation here any more — the 0.01 centimetre-to-metre conversion
+       is baked into the GLB by the converter. */
+    lib[name] = g;
+  } catch (e) {
+    console.warn('failed', name, e.message);
+  }
+  done++;
+  pctEl.textContent = done + ' / ' + PROPS.length;
+}
+
+/* A debug handle. Module scope is invisible to the harness and to the console, and
+   diagnosing a wrong-looking prop means inspecting its UVs — which is exactly how
+   the palette-atlas problem was found. */
+window.__scene3d = {
+  lib, scene, renderer,
+  /* Where in the atlas does this prop sample? A solid prop should report a tiny
+     range parked on one palette swatch; a leaf should span a big region. */
+  uv(name) {
+    const g = lib[name];
+    if (!g) return null;
+    let lo = [9, 9], hi = [-9, -9], n = 0;
+    g.traverse(o => {
+      const a = o.isMesh && o.geometry.attributes.uv;
+      if (!a) return;
+      n += a.count;
+      for (let i = 0; i < a.count; i++) {
+        lo[0] = Math.min(lo[0], a.getX(i)); hi[0] = Math.max(hi[0], a.getX(i));
+        lo[1] = Math.min(lo[1], a.getY(i)); hi[1] = Math.max(hi[1], a.getY(i));
+      }
+    });
+    return { verts: n, u: [+lo[0].toFixed(4), +hi[0].toFixed(4)], v: [+lo[1].toFixed(4), +hi[1].toFixed(4)] };
+  }
+};
+
+/* ---------- dress the island ----------
+   Seeded placement per zone kind. This is the mechanism that would give every
+   season a different island for no extra download: same props, new arrangement
+   from GAME.seed. */
+const dressing = new THREE.Group();
+scene.add(dressing);
+
+const put = (name, x, z, { s = 1, ry = null, tilt = 0 } = {}) => {
+  const src = lib[name];
+  if (!src) return null;
+  const o = src.clone(true);
+  o.position.set(x, 0, z);
+  o.scale.multiplyScalar(s);
+  o.rotation.y = ry === null ? rr(0, Math.PI * 2) : ry;
+  if (tilt) o.rotation.z = tilt;
+  dressing.add(o);
+  return o;
+};
+
+const RECIPE = {
+  ocean:   [['Boat_01A', 1], ['Small_Rock_01A', 3]],
+  beach:   [['Palm_Tree_01A', 2], ['Shell_01A', 4], ['StarFish_01A', 2], ['Small_Rock_01A', 3], ['Coconut_01A', 3]],
+  deep:    [['Palm_Tree_03A', 4], ['Bush_02A', 5], ['Plant_02A', 4], ['Grass_Patch_01', 5]],
+  camp:    [['Wood_Crate_01A', 3], ['Wood_Barrel_01A', 2], ['Jug_01A', 2], ['Cloth_02A', 1], ['Palm_Tree_06A', 1]],
+  fire:    [['Campfire_01A', 1], ['Palm_Log_01A', 3], ['Small_Rock_01A', 5]],
+  shelter: [['Palm_Log_01A', 2], ['Cloth_02A', 2], ['Wood_Crate_01A', 1], ['Palm_Tree_01A', 1]],
+  well:    [['Jug_01A', 3], ['Rock_Medium_01A', 3], ['Bush_02A', 2]],
+  forest:  [['Palm_Tree_03A', 3], ['Palm_Tree_01A', 2], ['Bush_02A', 4], ['Grass_Patch_01', 6]],
+  rocky:   [['Rock_Large_01A', 2], ['Rock_Medium_01A', 4], ['Small_Rock_01A', 6]],
+  mail:    [['Wood_Crate_01A', 2], ['Palm_Tree_01A', 1], ['Fishing_Net_01A', 1], ['Bush_02A', 2]]
+};
+
+function dress() {
+  seed = Math.floor(Math.random() * 1e9);
+  while (dressing.children.length) dressing.remove(dressing.children[0]);
+  for (const z of ZONES) {
+    for (const [name, n] of (RECIPE[z.kind] || [])) {
+      for (let i = 0; i < n; i++) {
+        const zz = z.kind === 'ocean' ? rr(34, 50)
+          : z.kind === 'deep' || z.kind === 'forest' ? rr(-30, -13)
+            : rr(-11, 14);
+        put(name, z.x + rr(-5.5, 5.5), zz, { s: rr(0.82, 1.24) });
+      }
+    }
+  }
+  /* A back wall of palms so the island reads as enclosed rather than a strip.
+     Pushed to z -46..-32 — at -34..-22 it was standing between the camera and the
+     beach, so the establishing shot was all trunk. */
+  for (let i = 0; i < 30; i++) put(pick(['Palm_Tree_01A', 'Palm_Tree_03A']), rr(-62, 70), rr(-46, -32), { s: rr(1.1, 1.6) });
+}
+dress();
+
+/* ============================================================
+   The castaways — paper cutouts, in the scene, occluded by the world.
+
+   This is claim 2 from the header and the reason the plan wants them out of the
+   DOM. Each is a flat plane carrying one of the game's real body PNGs, billboarded
+   to face the camera on the Y axis only, so they stay upright like a standee
+   rather than tipping to face a high camera.
+
+   A full port would rebuild all six rig parts (js/rig.js) as separate planes with
+   the same pivots. One plane each is enough to judge whether the LOOK works.
+   ============================================================ */
+const BODIES = ['male_muscular', 'female_muscular', 'male_skinny', 'female_skinny', 'male_curvy', 'female_curvy'];
+const people = [];
+const texLoader = new THREE.TextureLoader();
+
+for (let i = 0; i < 8; i++) {
+  const body = BODIES[i % BODIES.length];
+  const t = await texLoader.loadAsync('./assets/bodies/' + body + '.png').catch(() => null);
+  if (!t) continue;
+  t.colorSpace = THREE.SRGBColorSpace;
+  const h = 3.5;
+  const w = h * (t.image.width / t.image.height);
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    /* alphaTest, not blending: a blended plane does not write depth, so a castaway
+       would draw over props behind it and the occlusion this page exists to prove
+       would silently not work. */
+    new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide })
+  );
+  m.position.set(rr(-40, 55), h / 2, rr(-6, 10));
+  m.castShadow = true;
+  scene.add(m);
+  people.push({ m, home: m.position.clone(), phase: rr(0, 6.3) });
+}
+const player = people[0];
+
+/* ---------- tap the ground to walk ----------
+   offsetX/offsetY on purpose, NOT clientX minus a bounding rect. The real game
+   renders #app rotated 90deg in portrait, where getBoundingClientRect returns an
+   axis-aligned box and the usual NDC maths silently picks the wrong point. Offset
+   coordinates are in the element's own space and survive the rotation — the same
+   trick beach.js already uses for its tap layer. */
+const ray = new THREE.Raycaster();
+let walkTo = null;
+renderer.domElement.addEventListener('pointerdown', e => {
+  const el = renderer.domElement;
+  const nx = (e.offsetX / el.clientWidth) * 2 - 1;
+  const ny = -(e.offsetY / el.clientHeight) * 2 + 1;
+  ray.setFromCamera(new THREE.Vector2(nx, ny), camera);
+  const hit = ray.intersectObject(sand, false)[0];
+  if (hit && player) walkTo = hit.point.clone();
+});
+
+const zoneAt = x => ZONES.reduce((b, z) => Math.abs(z.x - x) < Math.abs(b.x - x) ? z : b, ZONES[0]);
+
+/* ---------- controls ---------- */
+let follow = true, dusk = false;
+document.getElementById('b-cam').onclick = e => {
+  follow = !follow;
+  e.target.textContent = 'Camera: ' + (follow ? 'follow' : 'free');
+};
+document.getElementById('b-re').onclick = () => dress();
+document.getElementById('b-walk').onclick = () => {
+  /* Send the player on a tour so you can watch them pass behind things. */
+  walkTo = new THREE.Vector3(rr(-44, 58), 0, rr(-8, 11));
+};
+document.getElementById('b-day').onclick = e => {
+  dusk = !dusk;
+  e.target.textContent = dusk ? 'Day' : 'Dusk';
+  const sky = dusk ? 0x2b2140 : 0x8fd0e8;
+  scene.background.setHex(sky);
+  scene.fog.color.setHex(sky);
+  sun.color.setHex(dusk ? 0xff9a5c : 0xfff2d8);
+  sun.intensity = dusk ? 0.85 : 2.15;
+  water.material.color.setHex(dusk ? 0x1d4a63 : 0x3fa9c9);
+};
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+/* ---------- loop ---------- */
+const fpsEl = document.getElementById('fps'), dcEl = document.getElementById('dc'),
+  triEl = document.getElementById('tri'), zoneEl = document.getElementById('zone');
+let last = performance.now(), acc = 0, frames = 0;
+loadEl.remove();
+
+renderer.setAnimationLoop(() => {
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  /* Billboard on Y only, so cutouts stay standing up. */
+  for (const p of people) {
+    p.m.rotation.y = Math.atan2(camera.position.x - p.m.position.x, camera.position.z - p.m.position.z);
+    /* A little breathing so they are not statues. */
+    p.m.position.y = p.m.geometry.parameters.height / 2 + Math.sin(now / 700 + p.phase) * 0.035;
+  }
+
+  if (player && walkTo) {
+    const d = walkTo.clone().sub(player.m.position).setY(0);
+    const dist = d.length();
+    if (dist < 0.4) walkTo = null;
+    else {
+      d.normalize().multiplyScalar(Math.min(dist, dt * 7.5));
+      player.m.position.add(d);
+      if (follow) controls.target.lerp(player.m.position.clone().setY(1.6), 0.06);
+    }
+  }
+
+  controls.update();
+  renderer.render(scene, camera);
+
+  acc += dt; frames++;
+  if (acc >= 0.5) {
+    fpsEl.textContent = Math.round(frames / acc);
+    dcEl.textContent = renderer.info.render.calls;
+    triEl.textContent = (renderer.info.render.triangles / 1000).toFixed(0) + 'k';
+    if (player) zoneEl.textContent = 'at ' + zoneAt(player.m.position.x).label;
+    acc = 0; frames = 0;
+  }
+});
+</script>
+</body>
+</html>

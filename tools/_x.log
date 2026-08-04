@@ -1,0 +1,36 @@
+running 29 suite(s)
+
+smoke               PASS
+tribe-test          PASS
+endgame-test        PASS
+survival-test       retry1… retry2… FAIL  (failed 3 times)
+    failing checks: plateauIsFree
+camp-test           PASS
+camp-ui-test        PASS
+evac-test           PASS
+minigame-test       PASS
+dilemma-test        PASS
+voice-test          PASS
+tap-test            PASS
+log-export-test     PASS
+maroon-flow-test    PASS
+brief-size-test     PASS
+condition-test      PASS
+circle-meeting-test PASS
+chal-rails-test     PASS
+chal-result-look    PASS
+tribal-test         PASS
+reward-test         PASS
+social-test         PASS
+splash-test         PASS
+howto-test          PASS
+howto-live          PASS
+logaccess-test      PASS
+maze-speed          PASS
+tribalqa-test       PASS
+island3d-test       retry1… PASS  (infra flake, passed on retry 1)
+chal-fair           PASS
+
+----------------------------------------------------
+28/29 passed, 1 needed a retry (island3d-test)
+FAILED: survival-test

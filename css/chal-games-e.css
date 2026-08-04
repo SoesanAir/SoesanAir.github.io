@@ -1,0 +1,310 @@
+/* ============================================================
+   MINIGAMES E — BALANCE AND PRECISION. Every class here is ce-.
+
+   Five games that are all the same picture: one thing that must stay level and
+   one thing that will not. So the visual grammar is shared on purpose —
+   ink outline, hard offset shadow, an ember object that is YOURS TO KEEP, and
+   green only ever meaning "you may act now". Nothing else is green. A player
+   glancing at any of these five should be able to answer "am I allowed to
+   press it yet" without reading a word.
+
+   Sizes are vmin and px. Never vh: the app is CSS-rotated 90 degrees in
+   portrait, so vh measures the wrong axis on a phone held upright.
+   ============================================================ */
+
+/* Arena children must not be squashed. .cg-arena is a scrolling flex column, so
+   without this a tall game silently compresses its own apparatus rather than
+   letting the arena scroll — and in a balance game that means the physics and
+   the picture stop agreeing about where the edge is. */
+.ce-discwrap, .ce-rodrig, .ce-tipsy, .ce-swordrig,
+.ce-board, .ce-level, .ce-sweep, .ce-word, .ce-dpad { flex: 0 0 auto; }
+
+/* ---- shared: the four-way tilt pad, used by Roller Ball and Table Maze ----
+   Placed explicitly on the grid rather than by source order so the two games
+   can append their buttons in whatever order reads best in the JS. The
+   descendant selector beats .cg-b on specificity, which matters because this
+   file is linked after challenges.css and must not depend on that staying
+   true. */
+.ce-dpad {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px; max-width: 260px; margin: 0 auto; width: 100%;
+}
+.ce-dpad .ce-dbtn { min-height: 40px; padding: 6px 0; font-size: 1.05em; }
+.ce-dpad .ce-du { grid-column: 2; grid-row: 1; }
+.ce-dpad .ce-dl { grid-column: 1; grid-row: 2; }
+.ce-dpad .ce-dd { grid-column: 2; grid-row: 2; }
+.ce-dpad .ce-dr { grid-column: 3; grid-row: 2; }
+
+/* ============================================================
+   E1. ROLLER BALL
+   The disc is drawn in perspective so the tilt is legible as a tilt rather
+   than as a number. The shade blob is redundancy for the same information:
+   3D rotation of a flat circle is subtle at small angles, and the dark side
+   is not, so the low edge is always readable at arm's length.
+   ============================================================ */
+.ce-discwrap {
+  display: flex; align-items: center; justify-content: center;
+  perspective: 620px; padding: 4px 0; min-height: 24vmin;
+}
+.ce-disc {
+  position: relative; flex: 0 0 auto;
+  width: min(var(--ce-disc, 34vmin), 76%);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--sand);
+  border: var(--outline, 2px) solid var(--ink);
+  box-shadow: 3px 4px 0 rgba(29, 27, 22, 0.35);
+  /* Visible, not hidden: a ball riding the rim is the most important second in
+     the round and clipping it away would hide exactly the frame the player
+     needs to react to. Nothing else in here can spill past the edge. */
+  overflow: visible;
+  will-change: transform;
+}
+.ce-disc-ring {
+  position: absolute; inset: 9%;
+  border: 2px solid rgba(29, 27, 22, 0.22); border-radius: 50%;
+}
+.ce-disc-ring::after {
+  content: ''; position: absolute; inset: 22%;
+  border: 2px dashed rgba(29, 27, 22, 0.16); border-radius: 50%;
+}
+/* The low side of the plate. Moved by transform only, so it costs one
+   composited layer rather than a gradient repaint every frame. */
+.ce-shade {
+  position: absolute; inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, rgba(29, 27, 22, 0.30) 0%, rgba(29, 27, 22, 0.10) 45%, transparent 68%);
+  pointer-events: none;
+}
+.ce-ball {
+  position: absolute; width: 3.4vmin; height: 3.4vmin;
+  margin: -1.7vmin 0 0 -1.7vmin;
+  border-radius: 50%;
+  background: var(--ember);
+  border: 2px solid var(--ink);
+  box-shadow: inset -0.5vmin -0.5vmin 0 rgba(29, 27, 22, 0.18);
+}
+.ce-ball.ce-gone { background: var(--bad); }
+
+/* ============================================================
+   E2. THE BALL DROP
+   The rod grows by percentage of a fixed rig, so "longer" reads as longer
+   relative to the frame the player has been looking at all round. The seams
+   are the receipt: you can count the sections that have been bolted on.
+   ============================================================ */
+.ce-rodrig {
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 86px; padding: 10px 0;
+}
+.ce-rod {
+  position: relative; flex: 0 0 auto; width: 42%; height: 20px;
+  background: var(--sand-deep);
+  border: var(--outline, 2px) solid var(--ink);
+  border-radius: 10px;
+  transform-origin: center center;
+  transition: width 260ms cubic-bezier(.2, 1.3, .4, 1);
+  will-change: transform, width;
+}
+.ce-rod-grain {
+  position: absolute; inset: 4px 10px;
+  border-top: 2px solid rgba(29, 27, 22, 0.26);
+  border-radius: 6px;
+}
+.ce-seam {
+  position: absolute; top: -4px; bottom: -4px; width: 4px; margin-left: -2px;
+  background: var(--ink); border-radius: 2px; opacity: 0.75;
+}
+/* bottom:100% sits the ball ON the wood rather than in it, and because it is a
+   child of the rod it rotates with the rod for free. */
+.ce-rodball {
+  position: absolute; bottom: 100%; margin-bottom: -3px;
+  width: 3.2vmin; height: 3.2vmin; margin-left: -1.6vmin;
+  border-radius: 50%;
+  background: var(--ember); border: 2px solid var(--ink);
+}
+.ce-rodball.ce-dropped {
+  transition: transform 340ms cubic-bezier(.4, .1, .8, 1);
+  transform: translateY(70px) scale(0.7);
+  background: var(--bad);
+}
+
+/* ============================================================
+   E3. A BIT TIPSY
+   The stack and the base rotate together — the base is not a separate thing
+   that wobbles under a stable tower, it IS the thing tipping, and the blocks
+   go with it. The level meter is the only place green appears, and PLACE turns
+   green at exactly the same moment, so the two are read as one statement.
+   ============================================================ */
+.ce-tipsy {
+  display: flex; align-items: flex-end; justify-content: center;
+  min-height: 108px; padding-top: 4px;
+}
+.ce-stackwrap {
+  position: relative;              /* contains the toppled ghost stack */
+  display: flex; flex-direction: column; align-items: center;
+  transform-origin: bottom center;
+  will-change: transform;
+}
+.ce-stack { display: flex; flex-direction: column-reverse; align-items: center; }
+.ce-blk {
+  width: 34px; height: 17px; margin-top: -2px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--cream); border: 2px solid var(--ink); border-radius: 3px;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.72em;
+  font-style: normal; color: var(--ink);
+}
+/* A toppled stack is lifted out of the layout so the fresh one does not jump
+   sideways while the wreck is still animating. */
+.ce-stack.ce-fell {
+  position: absolute; pointer-events: none;
+  animation: ce-topple 700ms cubic-bezier(.3, .8, .5, 1) forwards;
+}
+@keyframes ce-topple {
+  from { opacity: 1; transform: rotate(0deg) translate(0, 0); }
+  to { opacity: 0; transform: rotate(72deg) translate(34px, 18px); }
+}
+.ce-base {
+  width: 82px; height: 13px;
+  background: var(--sand-deep); border: 2px solid var(--ink);
+  border-radius: 3px 3px 6px 6px;
+}
+.ce-level {
+  position: relative; height: 20px;
+  background: rgba(29, 27, 22, 0.10);
+  border: 2px solid var(--ink); border-radius: 5px;
+  overflow: hidden;
+}
+.ce-level-win {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(74, 143, 95, 0.30);
+  border-left: 2px solid rgba(74, 143, 95, 0.7);
+  border-right: 2px solid rgba(74, 143, 95, 0.7);
+}
+.ce-level.ce-open .ce-level-win { background: rgba(74, 143, 95, 0.55); }
+.ce-level-dot {
+  position: absolute; top: 50%; width: 12px; height: 12px;
+  margin: -6px 0 0 -6px;
+  background: var(--ember); border: 2px solid var(--ink); border-radius: 50%;
+}
+.ce-word {
+  display: flex; gap: 3px; justify-content: center;
+  font-family: var(--font-display); font-weight: 800;
+}
+.ce-wl {
+  min-width: 20px; padding: 1px 3px; text-align: center;
+  border-bottom: 3px solid rgba(29, 27, 22, 0.25);
+  opacity: 0.28;
+}
+.ce-wl.ce-on { opacity: 1; border-bottom-color: var(--ink); }
+.ce-wl.ce-next { opacity: 0.7; border-bottom-color: var(--ember); }
+.btn.ce-ready { background: var(--good); color: var(--paper); }
+
+/* ============================================================
+   E4. BALANCING POINT
+   The sweep bar sits ABOVE the tower because that is where the coin is coming
+   from. The green zone narrows visibly as the tower rises, which is the whole
+   difficulty curve stated as one shrinking rectangle.
+   ============================================================ */
+.ce-swordrig {
+  display: flex; align-items: flex-end; justify-content: center;
+  min-height: 116px;
+}
+.ce-sword {
+  position: relative;
+  display: flex; flex-direction: column-reverse; align-items: center;
+  padding-bottom: 2px;
+}
+.ce-blade {
+  width: 7px; height: 42px;
+  background: var(--paper-dim); border: 2px solid var(--ink);
+  border-radius: 2px 2px 0 0;
+}
+.ce-guard {
+  width: 46px; height: 8px; margin-bottom: -1px;
+  background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 3px;
+}
+.ce-coins {
+  display: flex; flex-direction: column-reverse; align-items: center;
+  transform-origin: bottom center;
+  transition: transform 140ms ease;
+}
+.ce-coin {
+  width: 30px; height: 8px; margin-top: -2px;
+  background: var(--warn); border: 2px solid var(--ink); border-radius: 4px;
+}
+.ce-coins.ce-fell {
+  animation: ce-scatter 320ms cubic-bezier(.35, .8, .5, 1) forwards;
+}
+@keyframes ce-scatter {
+  from { opacity: 1; transform: rotate(0deg) translateY(0); }
+  to { opacity: 0; transform: rotate(58deg) translate(26px, 22px); }
+}
+.ce-sweep {
+  position: relative; height: 22px;
+  background: rgba(29, 27, 22, 0.10);
+  border: 2px solid var(--ink); border-radius: 5px;
+  overflow: hidden;
+}
+.ce-sweep-zone {
+  position: absolute; top: 0; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  background: rgba(74, 143, 95, 0.32);
+  border-left: 2px solid rgba(74, 143, 95, 0.75);
+  border-right: 2px solid rgba(74, 143, 95, 0.75);
+  transition: width 180ms ease;
+}
+.ce-sweep-cur {
+  position: absolute; top: 2px; bottom: 2px; width: 6px; margin-left: -3px;
+  background: var(--ink); border-radius: 2px;
+}
+.ce-sweep-cur.ce-in { background: var(--good); }
+
+/* ============================================================
+   E5. TABLE MAZE
+   Grooves drawn as two repeating gradients on the same cell pitch the JS uses,
+   so the holes land on visible intersections and the player can read the board
+   as a grid instead of as scattered dots.
+   ============================================================ */
+.ce-board {
+  position: relative;
+  width: min(50vmin, 290px); aspect-ratio: 1; margin: 0 auto;
+  background: var(--sand);
+  background-image:
+    repeating-linear-gradient(90deg, rgba(29, 27, 22, 0.12) 0 1px, transparent 1px calc(100% / 7)),
+    repeating-linear-gradient(0deg, rgba(29, 27, 22, 0.12) 0 1px, transparent 1px calc(100% / 7));
+  border: var(--outline, 2px) solid var(--ink);
+  border-radius: 6px;
+  box-shadow: 3px 4px 0 rgba(29, 27, 22, 0.35);
+  overflow: hidden;
+}
+.ce-hole {
+  position: absolute; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--ink);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.14);
+}
+.ce-startpad, .ce-exit {
+  position: absolute; width: 11%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border: 2px dashed var(--ink); border-radius: 4px;
+}
+.ce-startpad { background: rgba(29, 27, 22, 0.10); }
+.ce-exit { background: rgba(74, 143, 95, 0.40); border-style: solid; }
+.ce-mball {
+  position: absolute; width: 5.6%; aspect-ratio: 1;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--ember); border: 2px solid var(--ink);
+}
+
+/* Reduced motion: the fall and scatter animations are decoration on top of a
+   state change the game already reports in text and score. Drop them rather
+   than slow them. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .ce-stack.ce-fell,
+  html:not(.motion-full) .ce-coins.ce-fell { animation: none; opacity: 0; }
+  html:not(.motion-full) .ce-rod { transition: none; }
+}

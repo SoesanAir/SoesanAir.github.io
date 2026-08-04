@@ -1,0 +1,328 @@
+/* ============================================================
+   TRIBE COLOUR AND THE MAROONING
+
+   Two rules from the aesthetic pass, both load-bearing:
+
+     1. Colour never travels alone. Every tribe carries a colour AND a mark, and
+        the two always appear together, so a colour-blind player reads the emblem.
+        About one man in twelve cannot reliably separate the orange from the plum;
+        all of them can separate a flame from a sun.
+
+     2. The tribe colour is the ONLY saturated thing on a castaway. The rest of
+        the game is ink on cream paper. A buff reads as a band of real dye against
+        that, which is how it reads on the show. Wash a whole figure in tribe
+        colour and the paper-and-ink identity goes with it.
+
+   Anything painted by Tribes.mark() carries --t-color / --t-light / --t-ink /
+   --t-on, so it can be styled without knowing which tribe it is.
+   ============================================================ */
+:root {
+  --tribe-tidal: #2F7C97;
+  --tribe-ember: #D9762C;
+  --tribe-solara: #8A4A82;
+}
+
+/* ---- the chip: colour plus mark, everywhere a tribe is named ---- */
+.chip.tribe-chip {
+  background: var(--t-color, var(--ink));
+  color: var(--t-on, var(--paper));
+  letter-spacing: 1px;
+}
+/* The legacy classes keep working, now from the tribe palette. */
+.chip.tribe-tidal { background: var(--tribe-tidal); color: var(--paper); }
+.chip.tribe-ember { background: var(--tribe-ember); color: var(--indigo); }
+.chip.tribe-solara { background: var(--tribe-solara); color: var(--paper); }
+
+/* ---- the tribe flag ----
+   The first attempt put a coloured band across each castaway's middle. At the size
+   these figures render that reads as a bum bag, not a buff. So the colour comes off
+   the body and goes onto something planted in the ground beside them, which is also
+   how a camp gets marked in the first place. */
+.tribe-flag {
+  position: relative; flex: 0 0 auto;
+  width: clamp(14px, 3.4vmin, 30px);
+  height: clamp(38px, 11vmin, 92px);
+  align-self: flex-end;
+  pointer-events: none;
+}
+.tf-pole {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%);
+  width: 3px; height: 100%;
+  background: var(--ink);
+  border-radius: 2px 2px 0 0;
+}
+.tf-cloth {
+  position: absolute; left: calc(50% + 1px); top: 2%;
+  width: 110%; height: 30%;
+  background: var(--t-color, var(--ink));
+  border: 2px solid var(--ink);
+  /* A pennant: square at the pole, notched at the fly. */
+  clip-path: polygon(0 0, 100% 0, 74% 50%, 100% 100%, 0 100%);
+  display: flex; align-items: center; justify-content: flex-start;
+  padding-left: 12%;
+  z-index: 2;
+}
+.tf-mark {
+  font-size: clamp(6px, 1.5vmin, 12px); line-height: 1; font-weight: 800;
+  color: var(--t-on, var(--paper));
+}
+/* In the line-up the flag stands beside nine people, so it has to be TALLER than
+   they are — a flag the same height as the crowd just looks like more crowd. */
+.tribe-flag.tf-big {
+  width: clamp(26px, 6vmin, 52px);
+  height: clamp(86px, 26vmin, 190px);
+  margin-right: clamp(2px, 0.8vmin, 8px);
+}
+.tribe-flag.tf-big .tf-pole { width: 5px; }
+.tribe-flag.tf-big .tf-cloth { height: 26%; width: 118%; padding-left: 10%; }
+.tribe-flag.tf-big .tf-mark { font-size: clamp(9px, 2.4vmin, 18px); }
+
+/* The camp flag stands in the sand next to the crates. */
+/* The camp flag stands in the sand by the crates, tall enough to spot from across
+   the island — which is the whole job of a camp flag. */
+.camp-flag-f {
+  position: absolute; left: 30%; bottom: 20%;
+  width: clamp(22px, 5vmin, 44px); height: clamp(64px, 19vmin, 150px);
+  display: flex; align-items: flex-end;
+  z-index: 2;
+}
+.camp-flag-f .tribe-flag { width: 100%; height: 100%; }
+.camp-flag-f .tf-pole { width: 4px; }
+.camp-flag-f .tf-mark { font-size: clamp(8px, 2vmin, 15px); }
+/* On the beach the name tag picks the tribe up too, so a wide shot reads at a
+   glance without having to look at anybody's waist. */
+.bfig[data-tribe] .btag { border-bottom: 3px solid var(--t-color, var(--ink)); }
+.mfig[data-tribe] .mtag { border-bottom: 3px solid var(--t-color, var(--ink)); }
+
+/* ---- vote cards and pickers carry it as a spine ---- */
+.cast-card[data-tribe] { border-left: 6px solid var(--t-color, var(--ink)); }
+
+/* ============================================================
+   THE MAROONING — two tribes, clearly two.
+   ============================================================ */
+#maroon-line {
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: clamp(10px, 4vmin, 40px);
+  width: 100%;
+}
+/* Each tribe stands on its own mat under its own banner with real distance
+   between them. They used to be one row with a small text tag, which read as a
+   single crowd of eighteen. */
+.maroon-tribe {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 0 clamp(3px, 1.2vmin, 10px) 9px;
+  flex: 0 1 auto; min-width: 0;
+}
+.maroon-tribe::after {
+  content: '';
+  position: absolute; left: 0; right: 0; bottom: 0; height: 6px;
+  background: var(--t-color, var(--ink));
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+}
+.maroon-tribe-tag {
+  font-family: var(--font-display); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 2px;
+  font-size: clamp(0.6em, 1.8vmin, 0.9em);
+  padding: 2px clamp(7px, 2.2vmin, 18px);
+  background: var(--t-color, var(--ink));
+  color: var(--t-on, var(--paper));
+  border: 2px solid var(--ink);
+  border-radius: 3px 3px 0 0;
+  white-space: nowrap;
+}
+.maroon-row { display: flex; align-items: flex-end; gap: clamp(1px, 0.4vmin, 5px); }
+/* A strip of open beach between the tribes, so the separation reads as distance
+   rather than as padding. */
+.maroon-gap {
+  align-self: flex-end; flex: 0 0 auto;
+  width: clamp(12px, 4.5vmin, 44px); height: 22%;
+  border-bottom: 3px dashed rgba(29, 27, 22, 0.4);
+}
+.mfig { position: relative; transition: transform 260ms ease, filter 260ms ease, opacity 260ms ease; }
+/* Whoever Peff is talking to lifts out of their tribe; everyone else recedes. */
+#maroon-line.focusing .mfig { opacity: 0.42; filter: saturate(0.45) brightness(0.9); }
+#maroon-line.focusing .mfig.speaking {
+  opacity: 1; filter: none; transform: translateY(-9%) scale(1.15); z-index: 6;
+}
+
+/* ---- the opening title card ---- */
+#maroon-title {
+  position: absolute; inset: 0; z-index: 30;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; text-align: center; pointer-events: none;
+  opacity: 0; transition: opacity 300ms ease;
+}
+#maroon-title.go { opacity: 1; }
+.mt-kicker {
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 4px; font-size: clamp(0.58em, 1.8vmin, 0.88em);
+  color: var(--paper); text-shadow: 0 2px 0 var(--ink);
+  opacity: 0; animation: mt-in 420ms 100ms ease forwards;
+}
+.mt-big {
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 2px; line-height: 0.94;
+  font-size: clamp(28px, 10.5vmin, 74px);
+  color: var(--paper);
+  text-shadow: 0 5px 0 var(--ink), 5px 0 0 var(--ink), -5px 0 0 var(--ink), 0 -5px 0 var(--ink);
+  opacity: 0; transform: scale(0.6);
+  animation: mt-punch 520ms 240ms cubic-bezier(.2, 1.5, .4, 1) forwards;
+}
+.mt-sub {
+  font-family: var(--font-display); font-weight: 700;
+  letter-spacing: 2px; font-size: clamp(0.68em, 2.2vmin, 1em);
+  color: var(--sand); text-shadow: 0 2px 0 var(--ink);
+  opacity: 0; animation: mt-in 460ms 700ms ease forwards;
+}
+@keyframes mt-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes mt-punch { from { opacity: 0; transform: scale(0.55); } to { opacity: 1; transform: scale(1); } }
+
+/* ============================================================
+   THE MAROONING CONVERSATION — an exchange, not a caption.
+
+   The question used to replace the previous line while the reply sat underneath
+   in a smaller font, which reads as a label with a footnote. Both sides are turns
+   of the same kind now, appended to a transcript that keeps what was already
+   said, so it reads as a back-and-forth you can follow.
+   ============================================================ */
+#maroon-convo {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 2px 2px 4px;
+  scroll-behavior: smooth;
+}
+.mc-turn {
+  display: flex; gap: 7px; align-items: flex-start;
+  opacity: 0.5;
+  transition: opacity 220ms ease;
+}
+.mc-turn.latest { opacity: 1; }
+.mc-who {
+  flex: 0 0 auto; max-width: 6.2em;
+  font-family: var(--font-display); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.6px;
+  font-size: 0.62em; line-height: 1.6;
+  padding: 2px 6px; border-radius: 3px;
+  background: var(--ink); color: var(--paper);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mc-turn[data-tribe] .mc-who { background: var(--t-color); color: var(--t-on); }
+.mc-turn.peff .mc-who { background: var(--ember); color: var(--indigo); }
+.mc-text { flex: 1; font-size: 0.9em; line-height: 1.34; padding-top: 1px; }
+.mc-turn.reply .mc-text { font-style: italic; }
+.mc-turn.sting .mc-text { color: var(--ember); font-weight: 700; }
+.mc-turn.beat .mc-text { font-style: italic; opacity: 0.8; }
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .mt-kicker,
+  html:not(.motion-full) .mt-big,
+  html:not(.motion-full) .mt-sub {
+    animation-duration: 1ms; animation-delay: 0ms; opacity: 1; transform: none;
+  }
+  html:not(.motion-full) .mfig { transition: none; }
+}
+
+/* ---- readability fixes from looking at the thing ----
+   Nine castaways to a tribe means each figure is about 50px wide, so a name tag
+   constrained to the figure truncates to "COUR…" and the line-up stops telling
+   you who anybody is — which is most of what a line-up is for. Stagger the tags
+   into two rows: each one then has twice the horizontal room, because its
+   neighbours are on the other row. */
+.maroon-row .mfig .mtag {
+  max-width: 12ch;
+  letter-spacing: 0;
+  position: relative;
+  z-index: 4;
+}
+.maroon-row .mfig:nth-child(2n) .mtag { margin-top: 13px; }
+.maroon-row .mfig:nth-child(2n) { z-index: 2; }
+/* Whoever is speaking gets their full name and comes forward over both rows. */
+#maroon-line .mfig.speaking .mtag { max-width: none; z-index: 8; }
+
+/* The speaker chip has to fit the longest speaker name it will ever hold. */
+.mc-who { max-width: 7.6em; }
+
+/* A lone Next button should not sit inside an empty framed box. The frame is for
+   a list of choices; when there is nothing to choose it is just clutter. */
+#maroon-choices { background: none; border: none; padding: 0; }
+#maroon-choices:has(.maroon-opt) {
+  background: rgba(29, 27, 22, 0.06);
+  border: 2px solid rgba(29, 27, 22, 0.18);
+  border-radius: var(--radius);
+  padding: 4px;
+}
+
+/* ---- panel layout: the newest line must never hide behind the button ----
+   The transcript and the choice row are flex siblings, but the row was allowed to
+   grow into the transcript, so the reply that just arrived sat behind the Next
+   button — the one line you most need to read. The row now takes only what it
+   needs, and the transcript keeps a little air at the bottom. */
+#maroon-panel { height: 47%; gap: 4px; }
+#maroon-convo { padding-bottom: 6px; }
+#maroon-choices { flex: 0 0 auto; overflow: visible; }
+/* Only the real choice list scrolls, so there is one scrollbar on screen and not
+   two nested inside each other. */
+#maroon-choices:has(.maroon-opt) { max-height: 60%; overflow-y: auto; }
+
+/* ---- the title card is a takeover, not an overlay on the sky ----
+   It was centring inside the beach stage while the dialogue panel covered the
+   bottom half, so the whole card sat squashed into the top of the screen, the
+   subtitle landed on top of the castaways, and the applause line collided with
+   the kicker. It now covers the entire screen with a scrim, and everything in it
+   is one vertical stack that cannot overlap itself. */
+#maroon-title {
+  z-index: 55;
+  background: radial-gradient(ellipse at 50% 45%, rgba(29, 27, 22, 0.82) 0%, rgba(29, 27, 22, 0.62) 55%, rgba(29, 27, 22, 0.34) 100%);
+  gap: 6px;
+  padding: 0 12px;
+}
+#maroon-title .mt-applause {
+  font-family: var(--font-body); font-style: italic;
+  font-size: clamp(10px, 2.2vmin, 15px);
+  color: var(--cream); opacity: 0.9;
+  margin-top: 4px;
+  opacity: 0; animation: mt-in 500ms 1000ms ease forwards;
+}
+/* The standalone applause element is superseded by the one inside the card. */
+#maroon-applause { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) #maroon-title .mt-applause {
+    animation-duration: 1ms; animation-delay: 0ms; opacity: 1;
+  }
+}
+
+/* Now that the card is a sibling of the panel it can actually cover the screen. */
+#maroon-title { z-index: 55; }
+#maroon-dip { z-index: 60; }
+
+/* While the card is up there is nothing in the transcript yet, so the panel is a
+   large empty box sitting behind the scrim. Take it out of the shot. */
+#screen-maroon.titling #maroon-panel { opacity: 0; pointer-events: none; }
+#maroon-panel { transition: height 260ms ease, opacity 260ms ease; }
+
+/* The card owns its own type. No inherited text-shadow, because a shared one gets
+   picked up by every line and each line wants a different weight of outline. */
+#maroon-title {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  text-shadow: none;
+  color: var(--paper);
+}
+#maroon-title .mt-applause { text-shadow: 0 2px 0 rgba(29, 27, 22, 0.85); }
+
+/* A stacked four-way hard text-shadow is the usual trick for an ink outline, but
+   at 74px over a dark scrim the offset copies read as a smear under the word
+   rather than as an edge. A real stroke painted behind the fill gives one clean
+   outline and no doubling. */
+.mt-big {
+  -webkit-text-stroke: 5px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: 0 6px 12px rgba(0, 0, 0, 0.45);
+}
+.mt-kicker, .mt-sub {
+  -webkit-text-stroke: 3px var(--ink);
+  paint-order: stroke fill;
+  text-shadow: none;
+}

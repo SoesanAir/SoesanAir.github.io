@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<!-- Visual check for the cut-out rig. Open tools/rig-preview.html on a static
+     server. Row 1 shows each body assembled; row 2 explodes the parts apart so
+     a misplaced seam is obvious; row 3 runs the animation states. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rig preview</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  body { background: #F4E4C1; color: #1D1B16; font-family: system-ui, sans-serif; margin: 0; padding: 16px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 1px; margin: 18px 0 8px; }
+  .strip { display: flex; gap: 26px; align-items: flex-end; flex-wrap: wrap; }
+  .cell { text-align: center; font-size: 10px; }
+  .stage { position: relative; width: 120px; height: 190px; display: flex; align-items: flex-end; justify-content: center; }
+  .stage .bfig { position: relative; bottom: auto; width: 96px; }
+  .lbl { margin-top: 4px; opacity: 0.7; }
+  /* exploded view: push each part away from the body centre */
+  .explode .rig > .head  { transform: translateY(-16%); }
+  .explode .rig > .torso { outline: 1px dashed rgba(200,0,0,.6); }
+  .explode .rig > .armL  { transform: translateX(-22%) rotate(-8deg); }
+  .explode .rig > .armR  { transform: translateX(22%) rotate(8deg); }
+  .explode .rig > .legL  { transform: translate(-10%, 12%); }
+  .explode .rig > .legR  { transform: translate(10%, 12%); }
+  .explode .rig > .part  { animation: none !important; }
+  .outline .rig > .part { outline: 1px solid rgba(0,90,200,.55); }
+  /* Freeze every part at a chosen point in its timeline so a still screenshot
+     shows a real animation frame instead of whatever moment it caught. */
+  .stage.frame .bfig .rig > .part {
+    animation-play-state: paused !important;
+    animation-delay: var(--t) !important;
+  }
+  .stage.frame .bfig .sprite { animation-play-state: paused !important; animation-delay: var(--t) !important; }
+</style>
+</head>
+<body>
+<h2>Assembled (idle)</h2>
+<div class="strip" id="row-idle"></div>
+<h2>Exploded — seams should be clean cuts, nothing missing or doubled</h2>
+<div class="strip" id="row-explode"></div>
+<h2>Part boxes</h2>
+<div class="strip" id="row-outline"></div>
+<h2>States</h2>
+<div class="strip" id="row-states"></div>
+<h2>Walk cycle — frozen frames across one stride</h2>
+<div class="strip" id="row-walk"></div>
+<h2>Talk / cheer / wave / shrug / slump — frozen at the pose peak</h2>
+<div class="strip" id="row-poses"></div>
+
+<script src="../js/rig.js"></script>
+<script>
+const ORDER = ['legL','legR','armL','armR','torso','head'];
+function makeRig(bodyKey, url) {
+  const spec = RIG[bodyKey];
+  const rig = document.createElement('div');
+  rig.className = 'rig';
+  rig.style.aspectRatio = spec.w + ' / ' + spec.h;
+  rig.style.setProperty('--sprite', 'url("' + url + '")');
+  rig.style.setProperty('--phase', '0s');
+  const W = spec.w, H = spec.h;
+  for (const key of ORDER) {
+    const p = spec.parts[key];
+    const el = document.createElement('div');
+    el.className = 'part ' + key;
+    el.style.left = (p.x / W * 100) + '%';
+    el.style.top = (p.y / H * 100) + '%';
+    el.style.width = (p.w / W * 100) + '%';
+    el.style.height = (p.h / H * 100) + '%';
+    el.style.backgroundSize = (W / p.w * 100) + '% ' + (H / p.h * 100) + '%';
+    el.style.backgroundPosition = (W === p.w ? 0 : p.x / (W - p.w) * 100) + '% ' +
+                                  (H === p.h ? 0 : p.y / (H - p.h) * 100) + '%';
+    el.style.transformOrigin = (p.pivot[0] / p.w * 100) + '% ' + (p.pivot[1] / p.h * 100) + '%';
+    if (p.clip) {
+      const { sy, lx, rx } = p.clip;
+      el.style.clipPath = `polygon(0 0, 100% 0, 100% ${sy}%, ${rx}% ${sy}%, ${rx}% 100%, ${lx}% 100%, ${lx}% ${sy}%, 0 ${sy}%)`;
+    } else if (p.notch) {
+      const { cy, ix, side } = p.notch;
+      el.style.clipPath = side === 'L'
+        ? `polygon(0 0, 100% 0, 100% ${cy}%, ${ix}% ${cy}%, ${ix}% 100%, 0 100%)`
+        : `polygon(0 0, 100% 0, 100% 100%, ${ix}% 100%, ${ix}% ${cy}%, 0 ${cy}%)`;
+    }
+    rig.appendChild(el);
+  }
+  return rig;
+}
+function cell(bodyKey, label, cls) {
+  const c = document.createElement('div'); c.className = 'cell';
+  const stage = document.createElement('div'); stage.className = 'stage ' + (cls || '');
+  const fig = document.createElement('div'); fig.className = 'bfig';
+  const sprite = document.createElement('div'); sprite.className = 'sprite';
+  sprite.appendChild(makeRig(bodyKey, '../assets/bodies/' + bodyKey + '.png'));
+  fig.appendChild(sprite);
+  stage.appendChild(fig);
+  c.appendChild(stage);
+  const l = document.createElement('div'); l.className = 'lbl'; l.textContent = label;
+  c.appendChild(l);
+  return { cell: c, fig };
+}
+const BODIES = Object.keys(RIG);
+for (const b of BODIES) document.getElementById('row-idle').appendChild(cell(b, b).cell);
+for (const b of BODIES) document.getElementById('row-explode').appendChild(cell(b, b, 'explode').cell);
+for (const b of BODIES) document.getElementById('row-outline').appendChild(cell(b, b, 'outline explode').cell);
+for (const st of ['walking', 'em-talking', 'em-cheer', 'em-wave', 'em-shrug', 'em-slump']) {
+  const { cell: c, fig } = cell('male_muscular', st);
+  fig.classList.add(st);
+  document.getElementById('row-states').appendChild(c);
+}
+
+/* frozen frames: state + the timeline offset to pause at */
+function frameCell(row, bodyKey, state, t, label) {
+  const { cell: c, fig } = cell(bodyKey, label);
+  fig.classList.add(state);
+  c.querySelector('.stage').classList.add('frame');
+  c.querySelector('.stage').style.setProperty('--t', '-' + t + 's');
+  document.getElementById(row).appendChild(c);
+}
+// one full 0.52s stride, sampled
+[0, 0.065, 0.13, 0.195, 0.26, 0.325, 0.39, 0.455].forEach(t =>
+  frameCell('row-walk', 'male_muscular', 'walking', t, t + 's'));
+// each pose at the moment it peaks
+frameCell('row-poses', 'male_muscular', 'em-talking', 0.31, 'talk nod');
+frameCell('row-poses', 'male_muscular', 'em-talking', 0.376, 'talk gesture');
+frameCell('row-poses', 'male_muscular', 'em-cheer', 0.18, 'cheer peak');
+frameCell('row-poses', 'male_muscular', 'em-wave', 0.23, 'wave peak');
+frameCell('row-poses', 'male_muscular', 'em-shrug', 0.55, 'shrug peak');
+frameCell('row-poses', 'male_muscular', 'em-slump', 1.2, 'slump hold');
+frameCell('row-poses', 'female_curvy', 'walking', 0.13, 'f walk');
+frameCell('row-poses', 'female_skinny', 'em-cheer', 0.18, 'f cheer');
+
+/* big single figures for close inspection */
+const zh = document.createElement('h2'); zh.textContent = 'Zoom';
+const zs = document.createElement('div'); zs.className = 'strip'; zs.id = 'row-zoom';
+document.body.appendChild(zh); document.body.appendChild(zs);
+[['walking', 0.13, 'walk mid'], ['em-cheer', 0.18, 'cheer'], ['em-talking', 0.376, 'talk'],
+ ['em-wave', 0.23, 'wave'], ['em-slump', 1.2, 'slump']].forEach(([st, t, lb]) => {
+  frameCell('row-zoom', 'male_muscular', st, t, lb);
+});
+zs.querySelectorAll('.stage').forEach(s => { s.style.width = '230px'; s.style.height = '380px';
+  s.querySelector('.bfig').style.width = '210px'; });
+
+/* #frames / #build shows only those sections, so a screenshot stays legible */
+if (location.hash) {
+  const keep = { '#frames': ['row-walk', 'row-poses'], '#build': ['row-idle', 'row-explode'],
+                 '#zoom': ['row-zoom'] }[location.hash];
+  if (keep) {
+    document.querySelectorAll('h2').forEach(hh => {
+      const strip = hh.nextElementSibling;
+      if (!keep.includes(strip.id)) { hh.style.display = 'none'; strip.style.display = 'none'; }
+    });
+  }
+}
+</script>
+</body>
+</html>

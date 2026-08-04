@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<!-- Prop audit rig. Driven by tools/prop-audit.js over CDP; never linked from the game.
+
+     Renders one prop at a time, alone, framed to fill the view, against a KNOWN
+     background colour so the framebuffer can be measured: how much of it the prop
+     covers, and how many distinct colours it drew. That is what separates "loaded
+     without error" from "actually renders", which are very different things and have
+     diverged in this project more than once. -->
+<html><head><meta charset="utf-8"><title>prop audit</title>
+<style>html,body{margin:0;background:#202028}canvas{display:block}</style>
+</head>
+<body>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.js';
+import { GLTFLoader } from '../vendor/three/loaders/GLTFLoader.js';
+
+const W = 128, H = 128;
+/* A background no toon palette contains, so "is this pixel the prop or the void" is
+   never ambiguous. Magenta is the traditional choice for exactly this reason. */
+const BG = { r: 255, g: 0, b: 255 };
+
+const renderer = new THREE.WebGLRenderer({ antialias: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1);
+renderer.setSize(W, H, false);
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xff00ff);
+/* Lit from two sides so a prop cannot read as flat just because one face is dark. */
+const key = new THREE.DirectionalLight(0xffffff, 2.2); key.position.set(4, 6, 6); scene.add(key);
+const fill = new THREE.DirectionalLight(0xffffff, 0.9); fill.position.set(-5, 2, -4); scene.add(fill);
+scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+const camera = new THREE.PerspectiveCamera(35, 1, 0.01, 1000);
+
+/* ---------- load the library exactly the way the game does ----------
+   Same atlases, same per-pack material choice, same own-texture overrides. If the
+   audit loaded props differently it would be auditing something the player never
+   sees. */
+const meta = await fetch('../assets/scene3d/props.json').then(r => r.json());
+const scenes = meta.scenes || meta;
+const packOf = meta.pack || {};
+
+const loadTex = async url => {
+  const t = await new THREE.TextureLoader().loadAsync(url);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.flipY = true;
+  t.magFilter = THREE.NearestFilter;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  return t;
+};
+const OWN = {
+  Grass_Patch_01: 'tex_Grass_Patch_01', Grass_Patch_02: 'tex_Grass_Patch_02',
+  Grass_Patch_03: 'tex_Grass_Patch_03', Flowers_Patch_01A: 'tex_Flowers_Patch_01A'
+};
+const mats = {}, ownMat = {};
+for (const p of ['TAI', 'TFF', 'TNA', 'TFD', 'TEM', 'TDS']) {
+  try {
+    const tex = await loadTex('../assets/scene3d/atlas_' + p + '.webp');
+    /* Some packs split solid and foliage into two atlases — see the note in
+       js/scene3d.js. The audit must mirror the runtime exactly or it is auditing
+       something the player never sees. */
+    let cutTex = tex;
+    try { cutTex = await loadTex('../assets/scene3d/veg_' + p + '.webp'); } catch (e) { }
+    mats[p] = {
+      solid: new THREE.MeshLambertMaterial({ map: tex }),
+      cut: new THREE.MeshLambertMaterial({ map: cutTex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide })
+    };
+  } catch (e) { /* reported as a whole-pack failure in the summary */ }
+}
+for (const k in OWN) {
+  try {
+    const t = await loadTex('../assets/scene3d/' + OWN[k] + '.webp');
+    ownMat[k] = new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide });
+  } catch (e) { }
+}
+
+const loader = new GLTFLoader();
+const cache = {};
+const sceneOf = {};
+for (const s in scenes) for (const n of scenes[s]) sceneOf[n] = sceneOf[n] || s;
+
+window.__auditNames = filters => {
+  const all = Object.keys(sceneOf).sort();
+  if (!filters || !filters.length) return all;
+  return all.filter(n => filters.some(f => n.toLowerCase().includes(f.toLowerCase())));
+};
+
+async function loadProp(name) {
+  if (cache[name]) return cache[name];
+  const gltf = await loader.loadAsync('../assets/scene3d/models/' + name + '.glb');
+  const g = gltf.scene;
+  const pk = mats[packOf[name]] ? packOf[name] : 'TAI';
+  const isCut = /Bush|Plant|Palm_Tree|Fern|Reed|Vine|Flower|Nettle|Leaves|Twigs|Water_Plant|Mushroom|Grass|Board_/i.test(name);
+  const mat = ownMat[name] || (mats[pk] ? (isCut ? mats[pk].cut : mats[pk].solid) : null);
+  let hasUV = false;
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    if (o.geometry && o.geometry.attributes.uv) hasUV = true;
+    if (mat) o.material = mat;
+  });
+  cache[name] = { g, hasUV, pack: packOf[name] || '?' };
+  return cache[name];
+}
+
+/* Frame the prop so it fills the view regardless of its authored size. Without this a
+   2 cm shell and a 20 m gateway cannot be judged by the same measurement. */
+function frame(obj) {
+  const box = new THREE.Box3().setFromObject(obj);
+  const size = box.getSize(new THREE.Vector3());
+  const centre = box.getCenter(new THREE.Vector3());
+  const radius = Math.max(size.x, size.y, size.z) * 0.5 || 0.01;
+  const dist = radius / Math.tan(camera.fov * Math.PI / 360) * 1.9;
+  camera.position.set(centre.x + dist * 0.55, centre.y + dist * 0.42, centre.z + dist);
+  camera.lookAt(centre);
+  camera.near = Math.max(0.001, dist * 0.02);
+  camera.far = dist * 12;
+  camera.updateProjectionMatrix();
+  return size;
+}
+
+function measure() {
+  const gl = renderer.getContext();
+  const px = new Uint8Array(W * H * 4);
+  gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, px);
+  let covered = 0;
+  const seen = new Set();
+  for (let i = 0; i < px.length; i += 4) {
+    const r = px[i], g = px[i + 1], b = px[i + 2];
+    /* Tolerance, because alpha-blended edges tint toward the background. */
+    if (Math.abs(r - BG.r) < 18 && g < 18 && Math.abs(b - BG.b) < 18) continue;
+    covered++;
+    seen.add((r >> 4) + ',' + (g >> 4) + ',' + (b >> 4));
+  }
+  return { coverPct: +(covered / (W * H) * 100).toFixed(1), colours: seen.size };
+}
+
+window.__auditOne = async name => {
+  const rec = await loadProp(name);
+  const holder = new THREE.Group();
+  holder.add(rec.g);
+  scene.add(holder);
+  const size = frame(holder);
+  renderer.render(scene, camera);
+  const m = measure();
+  scene.remove(holder);
+
+  let tris = 0;
+  rec.g.traverse(o => {
+    if (o.isMesh && o.geometry) {
+      const gg = o.geometry;
+      tris += (gg.index ? gg.index.count : gg.attributes.position.count) / 3;
+    }
+  });
+
+  const h = +size.y.toFixed(2);
+  let verdict = 'OK', note = '';
+  /* Thin props legitimately cover very little: framing by the longest axis means a
+     1.6m paddle 4cm wide is a sliver on screen. Scale the bar by how sliver-like the
+     prop actually is, so THIN is reported separately from genuinely absent. */
+  const mn = Math.min(size.x, size.y, size.z), mx = Math.max(size.x, size.y, size.z);
+  const sliver = mx > 0 ? mn / mx : 1;
+  const bar = sliver < 0.06 ? 0.05 : 0.4;
+  if (m.coverPct < bar) { verdict = 'EMPTY'; note = 'covered ' + m.coverPct + '% of frame'; }
+  else if (m.coverPct < 0.4) { verdict = 'THIN'; note = 'sliver, covers ' + m.coverPct + '% — fine, just narrow'; }
+  else if (m.colours <= 1) { verdict = 'FLAT'; note = 'one colour — wrong atlas?'; }
+  else if (!rec.hasUV) { verdict = 'NO_UV'; note = 'no texture coordinates'; }
+  else if (size.y > 30 && sceneOf[name] !== 'horizon') { verdict = 'GIANT'; note = 'towers at ' + h + 'm outside the horizon set'; }
+  else if (Math.max(size.x, size.y, size.z) < 0.05) { verdict = 'SPECK'; note = 'largest axis under 5cm'; }
+
+  return {
+    name, pack: rec.pack, scene: sceneOf[name], verdict, note,
+    tris: Math.round(tris), h,
+    w: +size.x.toFixed(2), d: +size.z.toFixed(2),
+    cover: m.coverPct, colours: m.colours
+  };
+};
+
+/* A contact sheet, 12 across, so the whole library can be judged by eye. Split into
+   several images because a 658-cell sheet exceeds the max canvas size on some GPUs. */
+window.__auditSheet = async names => {
+  const COLS = 12, CELL = 96, PER = 240;
+  const out = [];
+  for (let start = 0; start < names.length; start += PER) {
+    const chunk = names.slice(start, start + PER);
+    const rows = Math.ceil(chunk.length / COLS);
+    const cv = document.createElement('canvas');
+    cv.width = COLS * CELL; cv.height = rows * CELL;
+    const cx = cv.getContext('2d');
+    cx.fillStyle = '#15151c'; cx.fillRect(0, 0, cv.width, cv.height);
+    cx.font = '9px monospace'; cx.textBaseline = 'top';
+    for (let i = 0; i < chunk.length; i++) {
+      const name = chunk[i];
+      try {
+        const rec = await loadProp(name);
+        const holder = new THREE.Group();
+        holder.add(rec.g);
+        scene.add(holder);
+        frame(holder);
+        renderer.render(scene, camera);
+        scene.remove(holder);
+        const x = (i % COLS) * CELL, y = Math.floor(i / COLS) * CELL;
+        cx.drawImage(renderer.domElement, x, y, CELL, CELL - 10);
+        cx.fillStyle = '#cfc8bb';
+        cx.fillText(name.slice(0, 15), x + 2, y + CELL - 10);
+      } catch (e) { /* the audit table already recorded the failure */ }
+    }
+    out.push(cv.toDataURL('image/png').split(',')[1]);
+  }
+  return out;
+};
+
+window.__auditReady = true;
+</script>
+</body></html>

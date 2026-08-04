@@ -1,0 +1,81 @@
+/* ============================================================
+   CASTAWAY — splash.css
+   The studio card that plays over the title screen on page load.
+
+   Kept out of style.css because it is the only part of the app that is not
+   "ink on cream paper" — it belongs to the logo, not to the game, and mixing
+   the two palettes in one file invites someone to reach for --paper here.
+   ============================================================ */
+
+/* position:fixed rather than absolute, and the same trick .tut-veil uses: in
+   portrait #app is rotated, which makes it the containing block for fixed
+   descendants, so this covers #app's whole border box including the safe-area
+   padding. In landscape there is no transform and it covers the viewport. Either
+   way there is no strip of body colour down the edge. */
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Sampled out of sosun.png itself. Plain black is a shade off and puts a
+     faintly visible rectangle around the artwork on an OLED phone — which is the
+     "logo sitting on a plate" look this is trying to avoid. */
+  background: #01020A;
+  cursor: pointer;
+  animation: splash-play 2280ms linear forwards;
+}
+
+/* vmin, never vh: #app is rotated 90deg in portrait, so vh is the wrong axis
+   half the time. The logo is square, so one dimension is enough. */
+#splash-logo {
+  width: 62vmin;
+  height: 62vmin;
+  /* Smooth gradients, not pixel art — nearest-neighbour would band the sun. */
+  image-rendering: auto;
+  /* `backwards`, NOT `both`, and this is not a nitpick: animating opacity puts
+     the image on its own compositing layer, and a persisted `forwards` fill keeps
+     that layer alive after the animation ends. Composited at 8 bits, the logo's
+     own #01020A backdrop lands on #000008 — two levels off the plate — and the
+     artwork gains the faint square outline this whole file exists to avoid.
+     Dropping the fill at the end hands the image back to the normal paint path
+     and the two blacks match exactly. */
+  animation: splash-settle 620ms cubic-bezier(0.16, 0.84, 0.34, 1) backwards;
+}
+
+/* The clock does not start until game.js says the artwork is actually there.
+   This is a 1.2MB PNG; on a cold phone load the fade would otherwise be half
+   over before the first pixel decoded, and the player would see a dark flash
+   and nothing else. */
+#splash,
+#splash-logo { animation-play-state: paused; }
+#splash.go,
+#splash.go #splash-logo { animation-play-state: running; }
+
+/* 620ms in + 1180ms hold + 480ms out = 2.28s. Long enough to read the name,
+   short enough that nobody reaches for the skip on the first run. */
+@keyframes splash-settle {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes splash-play {
+  0%     { opacity: 1; }
+  78.95% { opacity: 1; }   /* 1800ms in */
+  100%   { opacity: 0; }   /* 480ms cross-fade onto the title screen */
+}
+
+/* Reduced motion still gets the card — a studio credit that is skipped entirely
+   is not a credit — it just stands still and leaves sooner. House rule from
+   style.css: the OS preference wins unless the player picked FULL, and OFF wins
+   over everything. */
+@keyframes splash-still {
+  0%, 88.9% { opacity: 1; }   /* 800ms held, then a 100ms cut rather than a pop */
+  100%      { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) #splash { animation-name: splash-still; animation-duration: 900ms; }
+  html:not(.motion-full) #splash-logo { animation: none; opacity: 1; transform: none; }
+}
+html.motion-off #splash { animation-name: splash-still; animation-duration: 900ms; }
+html.motion-off #splash-logo { animation: none; opacity: 1; transform: none; }

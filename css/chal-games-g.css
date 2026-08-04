@@ -1,0 +1,161 @@
+/* ============================================================
+   MINIGAMES G — Fallen Comrades, Touchy Subjects, Tower Shuffle,
+   Tribal Tiles, Island Delicacies.
+
+   Everything here is prefixed cgg-. The shared widgets in challenges.css
+   (.cg-row, .cg-b, .cg-warn, .cg-grid4, .cg-cell) do the ordinary work; these
+   rules only cover the parts those widgets have no answer for.
+
+   Ink on cream, 2px black outlines, hard offset shadows, no gradients. Sizes in
+   px and vmin — never vh, because the app is CSS-rotated 90 degrees in portrait
+   and vh is the wrong axis on a phone held upright.
+   ============================================================ */
+
+/* ---- the two quiz games ----
+   Fallen Comrades and Touchy Subjects share a shape: a line of framing, a
+   question, four plates, and a read-out of how you are doing. The question is
+   the loudest thing on screen because it is the only thing the player has to
+   act on. */
+.cgg-note {
+  font-size: 0.74em; line-height: 1.3; opacity: 0.72;
+  text-align: center; padding: 0 4px;
+}
+.cgg-q {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(15px, 3.2vmin, 21px); line-height: 1.15;
+  text-align: center; text-wrap: balance;
+  min-height: 2.1em; display: flex; align-items: center; justify-content: center;
+  padding: 2px 4px;
+}
+/* The per-question fuse. The header bar counts the whole round, so this one
+   exists purely so that running out of time on a single question is something
+   the player watched approach rather than something that happened to them. */
+.cgg-fuse {
+  height: 7px; background: rgba(29, 27, 22, 0.15);
+  border: 2px solid var(--ink); border-radius: 3px; overflow: hidden;
+}
+.cgg-fuse > i { display: block; height: 100%; width: 100%; background: var(--warn); }
+.cgg-opts { gap: 5px; }
+.cgg-opt {
+  min-height: 40px; padding: 6px 10px; font-size: 0.88em;
+  text-transform: none; letter-spacing: 0;
+}
+/* Three strikes, shown the way the real challenge shows them: all three up
+   front, greyed, filling in red as you spend them. A counter that only appears
+   once you have lost something tells you nothing while you can still act. */
+.cgg-strikes { display: flex; gap: 8px; justify-content: center; }
+.cgg-strike {
+  width: 22px; height: 22px; line-height: 18px; text-align: center;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.85em;
+  color: rgba(29, 27, 22, 0.22);
+  border: 2px solid rgba(29, 27, 22, 0.25); border-radius: 4px;
+}
+.cgg-strike.out {
+  color: var(--paper); background: var(--bad); border-color: var(--ink);
+  animation: cgg-strike-in 220ms cubic-bezier(.2, 1.6, .35, 1);
+}
+@keyframes cgg-strike-in {
+  from { transform: scale(1.5) rotate(-12deg); }
+  to { transform: scale(1) rotate(0deg); }
+}
+
+/* ---- tower shuffle ----
+   Three posts, and the ring you are carrying has to be visible somewhere or the
+   whole puzzle turns into a guess about what you last tapped. */
+.cgg-posts {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  max-width: 340px; margin: 0 auto; width: 100%;
+}
+.cgg-post {
+  position: relative; height: 118px; padding: 6px 4px 16px;
+  display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 6px;
+  cursor: pointer;
+}
+.cgg-post.picked { background: var(--sand); box-shadow: inset 0 0 0 2px var(--ember); }
+.cgg-spine {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  top: 10px; bottom: 16px; width: 7px;
+  background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 4px;
+}
+/* column-reverse so the first ring in the array sits at the bottom of the post,
+   which is where the first ring in the array actually is. */
+.cgg-rings {
+  position: relative; z-index: 1; width: 100%;
+  display: flex; flex-direction: column-reverse; align-items: center; gap: 2px;
+}
+.cgg-ring {
+  height: 13px; background: var(--ember);
+  border: 2px solid var(--ink); border-radius: 7px;
+}
+.cgg-base-label {
+  position: absolute; bottom: 2px; left: 0; right: 0;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.6em;
+  letter-spacing: 1px; opacity: 0.55;
+}
+.cgg-hand {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 26px; padding: 3px 8px;
+  border: 2px dashed rgba(29, 27, 22, 0.35); border-radius: 6px;
+}
+.cgg-hand.full { border-style: solid; background: rgba(232, 135, 58, 0.18); }
+.cgg-hand-lbl {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.8em;
+  text-transform: uppercase; letter-spacing: 0.6px;
+}
+
+/* ---- tribal tiles ----
+   The clash highlight is the entire reason this is playable inside twenty
+   seconds. Without it the player has to hold four rows and four columns in
+   their head; with it the board says what is wrong and they only have to decide
+   what to do about it. */
+.cgg-latin { max-width: 260px; }
+.cgg-cell { font-size: 1.35em; }
+.cgg-cell.cgg-given { background: rgba(90, 168, 190, 0.28); color: var(--ocean-deep); }
+.cgg-cell.cgg-sel { box-shadow: inset 0 0 0 3px var(--ember); }
+.cgg-cell.cgg-clash { background: var(--bad); color: var(--paper); }
+.cgg-tray { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; }
+.cgg-sym {
+  min-width: 42px; min-height: 40px;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 5px;
+  font-size: 1.2em; font-weight: 800; cursor: pointer;
+}
+.cgg-sym.cgg-clear { background: var(--sand); font-family: var(--font-display); }
+
+/* ---- island delicacies ----
+   Two bars that mean opposite things, so they must not look alike: the plate
+   fills green from the left as you get through it, the gut fills red and goes
+   angry near the top. */
+.cgg-course {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.72em;
+  text-transform: uppercase; letter-spacing: 0.8px; text-align: center; opacity: 0.7;
+}
+.cgg-dish {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(17px, 4vmin, 26px); text-align: center; line-height: 1.1;
+  min-height: 1.2em;
+}
+.cgg-plate, .cgg-gut {
+  position: relative;
+  height: 18px; border: 2px solid var(--ink); border-radius: 5px; overflow: hidden;
+  background: rgba(29, 27, 22, 0.12);
+}
+.cgg-plate > i { display: block; height: 100%; width: 0%; background: var(--good); }
+.cgg-gut { height: 26px; background: rgba(201, 79, 61, 0.12); }
+.cgg-gut > i { display: block; height: 100%; width: 0%; background: var(--bad); }
+/* The top of the meter is the part that matters, so the line you must not cross
+   is drawn on the apparatus rather than left in the warning text. */
+.cgg-gut::after {
+  content: ''; position: absolute; left: 86%; top: 0; bottom: 0;
+  width: 2px; background: var(--ink); opacity: 0.5;
+}
+.cgg-gut.hot { animation: cgg-gut-throb 260ms ease-in-out infinite alternate; }
+@keyframes cgg-gut-throb {
+  from { box-shadow: 0 0 0 0 rgba(201, 79, 61, 0); }
+  to { box-shadow: 0 0 0 3px rgba(201, 79, 61, 0.45); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .cgg-gut.hot { animation: none; }
+  html:not(.motion-full) .cgg-strike.out { animation: none; }
+}

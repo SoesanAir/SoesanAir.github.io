@@ -1,0 +1,256 @@
+/* ============================================================
+   HOW TO PLAY CARD — the pre-minigame diagram.
+
+   Same vocabulary as the arena: ink on cream paper, 2px black outlines, hard
+   offset shadows, condensed caps. It has to read as the same object as the
+   challenge frame it is covering, or it looks like a system dialogue that has
+   interrupted the game rather than part of the broadcast.
+
+   THE HEIGHT BUDGET IS THE WHOLE CONSTRAINT. The shortest screen this ships on
+   is 344px tall and the challenge frame is 94% of that, so everything below has
+   to land inside roughly 320px with the headline, three panels, a warning strip
+   and a tap hint all visible at once. That is why every font size is a clamp
+   with a low floor and a hard ceiling rather than an em: at 344px the floors do
+   the work and on a tablet the ceilings stop the card becoming a poster.
+
+   Sizes are vmin or px, never vh — #app is rotated 90 degrees in portrait, so
+   vh is the short axis on a phone held upright and everything sized in it comes
+   out wrong by exactly the aspect ratio.
+   ============================================================ */
+
+/* A card centred on the whole #chal-game layer, NOT stretched inside .cg-frame.
+
+   The frame is the obvious host and it is the wrong one. At the moment this goes
+   up, start() has not been called and the arena is empty, so .cg-arena's
+   `flex: 1 1 auto` resolves to nothing and the frame is about sixty pixels tall —
+   and it has overflow:hidden, so a card inset:0 inside it gets its bottom half
+   cut off, warning strip and all. Measured: 42 to 48px of every card clipped.
+   The layer is inset:0 on the screen, so hosting here means the height available
+   is the app's height and does not depend on what the arena happens to contain.
+
+   The layer already paints its own rgba veil, which is why this needs no scrim
+   of its own — it reads as paper laid over the dimmed arena. */
+.hw-card {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 36;
+  width: min(94%, 520px);
+  max-height: calc(100% - 10px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: clamp(4px, 1.4vmin, 9px);
+  padding: clamp(6px, 1.8vmin, 12px) 10px;
+  background: var(--paper); color: var(--ink);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius-big);
+  box-shadow: 5px 5px 0 rgba(29, 27, 22, 0.5);
+  overflow: hidden; cursor: pointer;
+  animation: hw-in 150ms ease-out;
+}
+/* The centring transform has to be carried through the keyframes or the card
+   jumps a quarter of its own size on the first frame. */
+@keyframes hw-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* The challenge name again. The frame's own header is underneath the card. */
+.hw-name {
+  font-family: var(--font-display); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  font-size: clamp(9px, 2.1vmin, 12px);
+  opacity: 0.55; text-align: center;
+}
+.hw-name:empty { display: none; }
+
+/* The verb, as a chyron. Ember rule under it rather than a filled block: a solid
+   bar this size fights the warning strip for attention and the warning strip has
+   to win. */
+.hw-verb {
+  font-family: var(--font-display); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 1.6px; line-height: 1.02;
+  font-size: clamp(16px, 4.3vmin, 26px);
+  text-align: center; max-width: 100%;
+  padding-bottom: 3px;
+  border-bottom: 3px solid var(--ember);
+}
+
+/* ---- the panels ---- */
+.hw-steps {
+  display: flex; align-items: stretch; justify-content: center;
+  gap: clamp(3px, 1vmin, 7px);
+  width: 100%; max-width: 460px;
+}
+.hw-panel {
+  flex: 1 1 0; min-width: 0; max-width: 126px;
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
+  gap: 4px; padding: clamp(4px, 1.2vmin, 8px) 4px;
+  background: var(--paper-dim);
+  border: 2px solid var(--ink); border-radius: 6px;
+  box-shadow: 3px 3px 0 var(--ink);
+}
+.hw-arrow {
+  align-self: center; flex: 0 0 auto;
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(10px, 2.8vmin, 16px);
+  opacity: 0.7;
+}
+.hw-glyph {
+  display: flex; align-items: center; justify-content: center;
+  min-height: clamp(26px, 7vmin, 38px); max-width: 100%;
+  font-family: var(--font-display); font-weight: 800; line-height: 1;
+  font-size: clamp(19px, 5.2vmin, 30px);
+  text-align: center;
+}
+/* Anything past two characters is a little sentence of symbols rather than one
+   mark, and at full glyph size it is wider than the panel. */
+.hw-glyph-long {
+  font-size: clamp(11px, 3vmin, 17px);
+  letter-spacing: 0.6px; white-space: nowrap;
+}
+.hw-cap {
+  font-size: clamp(8.5px, 2.2vmin, 11.5px);
+  line-height: 1.2; font-weight: 600;
+  text-align: center; hyphens: auto;
+}
+
+/* ---- the warning strip ----
+   The failure condition, and the only thing on the card in the warning colour,
+   so it is the second thing read after the verb. */
+.hw-fail {
+  display: flex; align-items: center; gap: 6px;
+  max-width: 100%; padding: 2px 8px;
+  background: var(--warn); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 4px;
+  box-shadow: 3px 3px 0 rgba(29, 27, 22, 0.5);
+  font-size: clamp(9px, 2.2vmin, 12px);
+  text-align: left;
+}
+.hw-fail-tag {
+  flex: 0 0 auto;
+  font-family: var(--font-display); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.9px;
+  white-space: nowrap;
+}
+.hw-fail-txt { font-weight: 600; min-width: 0; }
+
+.hw-tap {
+  font-family: var(--font-display); font-weight: 800;
+  text-transform: uppercase; letter-spacing: 2.4px;
+  font-size: clamp(9px, 2.2vmin, 12px);
+  opacity: 0.75;
+  animation: hw-blink 1200ms steps(1, end) infinite;
+}
+@keyframes hw-blink { 0%, 62% { opacity: 0.85; } 63%, 100% { opacity: 0.3; } }
+
+/* ============================================================
+   THE SHAPE PRIMITIVES
+
+   Fixed pixel sizes on purpose. These are diagram parts, not layout: a safe band
+   that is 40% of its track has to stay 40% of its track, and a track that
+   stretches with the panel would make the same picture mean different things in
+   a two-panel and a three-panel card.
+   ============================================================ */
+
+/* A track, a safe band, a marker in it. */
+.hw-lane {
+  position: relative; width: 62px; height: 16px;
+  background: rgba(29, 27, 22, 0.10);
+  border: 2px solid var(--ink); border-radius: 8px;
+}
+.hw-lane-safe {
+  position: absolute; top: 0; bottom: 0; left: 30%; right: 30%;
+  background: rgba(74, 143, 95, 0.38);
+}
+.hw-lane-dot {
+  position: absolute; top: 50%; left: 50%;
+  width: 11px; height: 11px; margin: -6px 0 0 -6px;
+  border-radius: 50%; background: var(--ember);
+  border: 2px solid var(--ink);
+}
+.hw-lane.out .hw-lane-dot { left: 93%; background: var(--bad); }
+
+/* A bar part-filled with the last quarter in the bad colour. */
+.hw-meter {
+  position: relative; width: 62px; height: 15px; overflow: hidden;
+  background: rgba(29, 27, 22, 0.10);
+  border: 2px solid var(--ink); border-radius: 3px;
+}
+.hw-meter-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 62%; background: var(--good); }
+.hw-meter-red { position: absolute; right: 0; top: 0; bottom: 0; width: 26%; background: var(--bad); opacity: 0.8; }
+
+/* A grid of pads with one lit. */
+.hw-grid { display: grid; grid-template-columns: repeat(3, 11px); gap: 3px; }
+.hw-cell {
+  width: 11px; height: 11px; border-radius: 2px;
+  background: var(--paper); border: 2px solid var(--ink);
+}
+.hw-cell.lit { background: var(--ember); }
+
+/* A plank off level, with the ball already running to the low end. */
+.hw-plank {
+  position: relative; width: 64px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+}
+.hw-plank-bar {
+  position: relative; display: block; width: 60px; height: 9px;
+  background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 5px;
+  transform: rotate(-13deg);
+}
+.hw-plank-ball {
+  position: absolute; left: 8%; top: -12px;
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--ocean); border: 2px solid var(--ink);
+}
+
+/* Two pads, one lit — "this side, now". */
+.hw-pads { display: flex; gap: 5px; }
+.hw-pad {
+  width: 27px; height: 21px; border-radius: 4px;
+  background: var(--paper); border: 2px solid var(--ink);
+  opacity: 0.4;
+}
+.hw-pad.lit { background: var(--ember); opacity: 1; }
+
+/* A leaning stack. */
+.hw-stack {
+  display: flex; flex-direction: column-reverse; align-items: center;
+  transform: rotate(7deg); transform-origin: bottom center;
+}
+.hw-brick {
+  width: 34px; height: 9px; margin-top: -2px; border-radius: 2px;
+  background: var(--sand-deep); border: 2px solid var(--ink);
+}
+
+/* A sweeping cursor and the window it has to be inside. */
+.hw-sweep {
+  position: relative; width: 62px; height: 15px;
+  background: rgba(29, 27, 22, 0.10);
+  border: 2px solid var(--ink); border-radius: 3px;
+}
+.hw-sweep-win {
+  position: absolute; top: 0; bottom: 0; left: 37%; width: 24%;
+  background: rgba(74, 143, 95, 0.45);
+  border-left: 2px solid var(--good); border-right: 2px solid var(--good);
+}
+.hw-sweep-cur {
+  position: absolute; top: -4px; bottom: -4px; left: 76%;
+  width: 3px; background: var(--ink);
+}
+
+/* Four meters, one nearly gone. */
+.hw-bars { display: flex; gap: 4px; align-items: flex-end; }
+.hw-bar {
+  position: relative; overflow: hidden;
+  width: 10px; height: 30px; border-radius: 2px;
+  background: var(--paper); border: 2px solid var(--ink);
+}
+.hw-bar > u { position: absolute; left: 0; right: 0; bottom: 0; height: 78%; background: var(--good); }
+.hw-bar.low > u { height: 16%; background: var(--bad); }
+
+/* The game already exposes a motion preference; honour it here too. A blinking
+   hint and a scale-in are exactly the two things that setting is for. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .hw-card { animation: none; }
+  html:not(.motion-full) .hw-tap { animation: none; opacity: 0.8; }
+}

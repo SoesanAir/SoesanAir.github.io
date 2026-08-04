@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Castaway — Environment Editor</title>
+<style>
+  :root { --bg:#0b0a14; --panel:rgba(12,10,22,.93); --ink:#f4e9d8; --accent:#E8873A;
+    --alt:#d8c9a8; --line:rgba(244,233,216,.14); }
+  html, body { margin:0; height:100%; background:var(--bg); overflow:hidden;
+    font-family: system-ui,-apple-system,sans-serif; color:var(--ink);
+    -webkit-user-select:none; user-select:none; }
+  canvas { display:block; }
+  #view { position:fixed; inset:0; }
+
+  #top { position:fixed; left:0; right:0; top:0; height:44px; z-index:6;
+    display:flex; align-items:center; gap:7px; padding:0 10px;
+    background:var(--panel); border-bottom:1px solid var(--line); }
+  #top .title { font-weight:800; color:var(--accent); margin-right:4px; letter-spacing:.3px; white-space:nowrap; }
+  #top .spacer { flex:1; }
+  #top .count { opacity:.7; font-size:12px; white-space:nowrap; }
+  select, button { font-size:12px; border-radius:7px; }
+  select { background:#00000044; color:var(--ink); border:1px solid var(--line); padding:6px 7px; }
+  button { background:var(--accent); color:#241a2e; border:2px solid #241a2e;
+    padding:7px 10px; font-weight:700; cursor:pointer; box-shadow:0 2px 0 rgba(0,0,0,.5); }
+  button.alt { background:var(--alt); }
+  button.ghost { background:transparent; color:var(--ink); border-color:var(--line); box-shadow:none; }
+  button.on { outline:2px solid var(--accent); }
+  label.lbl { font-size:11px; opacity:.7; }
+
+  #left { position:fixed; left:0; top:44px; bottom:0; width:222px; z-index:5;
+    background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; }
+  #search { margin:8px; padding:7px 9px; border-radius:7px; border:1px solid var(--line);
+    background:#00000033; color:var(--ink); font-size:12px; }
+  #cats { display:flex; flex-wrap:wrap; gap:4px; padding:0 8px 6px; max-height:104px; overflow:auto; }
+  #cats .cat { font-size:11px; padding:4px 7px; border-radius:6px; cursor:pointer;
+    background:#ffffff10; border:1px solid var(--line); white-space:nowrap; }
+  #cats .cat.on { background:var(--accent); color:#241a2e; font-weight:700; }
+  #list { flex:1; overflow:auto; padding:4px 6px 12px; }
+  #list .item { font-size:12px; padding:4px 8px; border-radius:6px; cursor:pointer;
+    display:flex; align-items:center; gap:7px; }
+  #list .item:hover { background:#ffffff12; }
+  #list .item.on { background:var(--accent); color:#241a2e; font-weight:700; }
+  #list .item .thumb { width:30px; height:30px; flex:0 0 auto; object-fit:contain;
+    background:#00000033; border-radius:5px; }
+  #list .item .nm { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  #list .item .pk { opacity:.5; font-size:10px; flex:0 0 auto; }
+
+  #right { position:fixed; right:0; top:44px; bottom:0; width:220px; z-index:5;
+    background:var(--panel); border-left:1px solid var(--line); padding:10px; overflow:auto; font-size:12px; }
+  #right h3 { margin:2px 0 8px; font-size:13px; color:var(--accent); }
+  #right .none { opacity:.55; line-height:1.5; }
+  .row { display:flex; align-items:center; gap:6px; margin:6px 0; }
+  .row label { width:34px; opacity:.7; }
+  .row input[type=number] { width:60px; background:#00000033; color:var(--ink);
+    border:1px solid var(--line); border-radius:5px; padding:4px 5px; font-size:12px; }
+  .row input[type=range] { flex:1; }
+  #right .btns { display:flex; gap:6px; margin-top:12px; flex-wrap:wrap; }
+
+  #hud { position:fixed; left:230px; bottom:8px; z-index:5; font-size:11px;
+    background:var(--panel); padding:6px 10px; border-radius:7px; line-height:1.6; pointer-events:none; opacity:.92; }
+  #hud b { color:var(--accent); }
+  #brush { position:fixed; left:50%; top:52px; transform:translateX(-50%); z-index:6;
+    font-size:12px; background:var(--panel); padding:5px 12px; border-radius:7px; border:1px solid var(--accent); display:none; }
+  #pv { position:fixed; left:50%; top:52px; transform:translateX(-50%); z-index:6; display:none;
+    font-size:12px; background:var(--panel); padding:5px 12px; border-radius:7px; border:1px solid #6cc; color:#bff; }
+  #load { position:fixed; inset:0; display:grid; place-items:center; z-index:20;
+    background:var(--bg); font-size:15px; text-align:center; padding:20px; }
+  #load span { opacity:.6; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="load">loading assets…<br><span id="pct"></span></div>
+
+<div id="top">
+  <span class="title">Environment Editor</span>
+  <label class="lbl">Zone</label>
+  <select id="zone"></select>
+  <label class="lbl">Ground</label>
+  <select id="ground"></select>
+  <button id="b-pv" class="ghost">Player view</button>
+  <button id="b-grid" class="ghost on">Grid</button>
+  <button id="b-lod" class="ghost on">LOD</button>
+  <button id="b-rand" class="ghost on">Rand rot</button>
+  <span class="spacer"></span>
+  <button id="b-new" class="ghost">New</button>
+  <button id="b-load" class="ghost">Load…</button>
+  <button id="b-save">Save env</button>
+  <button id="b-copy" class="alt">Copy</button>
+  <span class="count"><span id="n">0</span> · <span id="cat-n">0</span> props</span>
+  <button id="b-help" class="ghost">?</button>
+</div>
+
+<div id="left">
+  <input id="search" placeholder="search props…" autocomplete="off">
+  <div id="cats"></div>
+  <div id="list"></div>
+</div>
+
+<div id="right">
+  <div id="insp-none" class="none">
+    Nothing selected.<br><br>
+    Pick a prop on the left, then <b>left-click the ground</b> to place it.
+    Left-click a placed prop to select and drag it.
+  </div>
+  <div id="insp" style="display:none">
+    <h3 id="insp-name">—</h3>
+    <div class="row"><label>X</label><input type="number" id="in-x" step="0.5"></div>
+    <div class="row"><label>Y</label><input type="number" id="in-y" step="0.1"></div>
+    <div class="row"><label>Z</label><input type="number" id="in-z" step="0.5"></div>
+    <div class="row"><label>Rot</label><input type="range" id="in-rot" min="0" max="360" step="1">
+      <input type="number" id="in-rotn" min="0" max="360" step="1" style="width:48px"></div>
+    <div class="row"><label>Scale</label><input type="range" id="in-scl" min="0.2" max="5" step="0.05">
+      <input type="number" id="in-scln" min="0.05" step="0.05" style="width:48px"></div>
+    <div class="btns">
+      <button id="b-dup" class="alt">Duplicate</button>
+      <button id="b-del">Delete</button>
+      <button id="b-desel" class="ghost">Deselect</button>
+    </div>
+  </div>
+</div>
+
+<div id="brush"></div>
+<div id="pv">PLAYER VIEW — left-click ground to walk the viewpoint · Player view to exit</div>
+<div id="hud">
+  <div><b>L-click</b> place / select · <b>L-drag</b> move · <b>R-drag</b> orbit · <b>M-drag</b> pan · <b>wheel</b> zoom</div>
+  <div><b>Q/E</b> rotate · <b>[ ]</b> scale · <b>Del</b> delete · <b>Ctrl+D</b> dup · <b>Esc</b> deselect</div>
+</div>
+<input id="file" type="file" accept="application/json,.json" style="display:none">
+
+<script type="module">
+import * as THREE from './vendor/three/three.module.js';
+import { GLTFLoader } from './vendor/three/loaders/GLTFLoader.js';
+import { OrbitControls } from './vendor/three/controls/OrbitControls.js';
+
+/* ============================================================
+   Castaway environment editor.
+   Reuses the game's renderer pipeline (per-PACK palette atlases, NEAREST filter),
+   now across all six source packs, with per-zone ground, a player-POV preview, and
+   distance LOD (far props drop to a quarter-res atlas and stop casting shadows).
+   Outputs a standalone environment JSON.
+   ============================================================ */
+const MODELS = './assets/scene3d/models/';
+const ATLASES = ['TAI', 'TFF', 'TNA', 'TFD', 'TEM', 'DS'];
+const GROUND = 160, R2D = 180 / Math.PI, D2R = Math.PI / 180;
+const round = n => Math.round(n * 1000) / 1000;
+const LOD_MID = 55, LOD_FAR = 115;
+
+const loadEl = document.getElementById('load'), pctEl = document.getElementById('pct');
+const setPct = t => pctEl.textContent = t;
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.domElement.id = 'view';
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+const SKY = 0x8fd0e8;
+scene.background = new THREE.Color(SKY);
+scene.fog = new THREE.Fog(SKY, 150, 340);
+
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.4, 2000);
+camera.position.set(52, 56, 70);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.set(0, 0, 0);
+controls.enableDamping = true; controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI * 0.495; controls.minDistance = 4; controls.maxDistance = 400;
+controls.mouseButtons = { LEFT: null, MIDDLE: THREE.MOUSE.PAN, RIGHT: THREE.MOUSE.ROTATE };
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.15);
+sun.position.set(-45, 66, 34); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 300;
+sun.shadow.camera.left = -GROUND; sun.shadow.camera.right = GROUND;
+sun.shadow.camera.top = GROUND; sun.shadow.camera.bottom = -GROUND;
+sun.shadow.bias = -0.0012;
+scene.add(sun);
+scene.add(new THREE.HemisphereLight(0xbfe6ff, 0xc79a5e, 0.85));
+
+/* ============================================================
+   Ground types + zones.
+   ============================================================ */
+const GROUND_TYPES = {
+  sand:   { label: 'Sand',        color: 0xe4c893 },
+  jungle: { label: 'Jungle floor', color: 0x6f9153, tex: 'grass' },
+  grass:  { label: 'Grass',       color: 0x9fbf7a, tex: 'grass' },
+  dirt:   { label: 'Dirt',        color: 0x8a6a44 },
+  rock:   { label: 'Rock',        color: 0x8f8b83 },
+  temple: { label: 'Temple stone', color: 0xbaa98a },
+  desert: { label: 'Desert sand', color: 0xdcc38a },
+  water:  { label: 'Shallow water', color: 0x3fa9c9 }
+};
+const ZONES = [
+  { id: 'beach',     label: 'Beach',           ground: 'sand' },
+  { id: 'camp',      label: 'Camp',            ground: 'sand' },
+  { id: 'jungle',    label: 'Jungle / Forest', ground: 'jungle' },
+  { id: 'rocks',     label: 'Rocky coast',     ground: 'rock' },
+  { id: 'tribal',    label: 'Tribal council',  ground: 'temple' },
+  { id: 'challenge', label: 'Challenge arena', ground: 'dirt' },
+  { id: 'temple',    label: 'Ruins / temple',  ground: 'temple' },
+  { id: 'desert',    label: 'Desert',          ground: 'desert' },
+  { id: 'meadow',    label: 'Meadow',          ground: 'grass' },
+  { id: 'ocean',     label: 'Shore / ocean',   ground: 'water' }
+];
+
+const texLoad = u => new THREE.TextureLoader().loadAsync(u).catch(() => null);
+let grassTex = null, groundMats = {}, groundMesh, grid, curGround = 'sand', curZone = 'beach';
+async function buildGround() {
+  grassTex = await texLoad('./assets/scene3d/grass.webp');
+  if (grassTex) { grassTex.colorSpace = THREE.SRGBColorSpace; grassTex.flipY = true; grassTex.wrapS = grassTex.wrapT = THREE.RepeatWrapping; }
+  for (const id in GROUND_TYPES) {
+    const g = GROUND_TYPES[id];
+    const m = new THREE.MeshLambertMaterial({ color: g.color });
+    if (g.tex === 'grass' && grassTex) { const t = grassTex.clone(); t.needsUpdate = true; t.repeat.set(GROUND / 4, GROUND / 4); m.map = t; }
+    groundMats[id] = m;
+  }
+  groundMesh = new THREE.Mesh(new THREE.PlaneGeometry(GROUND, GROUND), groundMats.sand);
+  groundMesh.rotation.x = -Math.PI / 2; groundMesh.receiveShadow = true;
+  scene.add(groundMesh);
+  grid = new THREE.GridHelper(GROUND, GROUND / 2, 0x1a2a20, 0x24382c);
+  grid.position.y = 0.02; scene.add(grid);
+}
+function setGround(id) { curGround = id; groundMesh.material = groundMats[id] || groundMats.sand; document.getElementById('ground').value = id; }
+
+/* ============================================================
+   Materials — hi (1024) + lo (256) per PACK, plus a cut variant for foliage.
+   The lo set is the LOD tier: a quarter-res atlas drawn once to a canvas.
+   ============================================================ */
+const mats = {}; let grassMat = null;
+function lowResTex(hi) {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const cx = c.getContext('2d'); cx.imageSmoothingEnabled = false;
+  try { cx.drawImage(hi.image, 0, 0, 256, 256); } catch { return hi; }
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace; t.flipY = true;
+  t.magFilter = THREE.NearestFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+  return t;
+}
+async function buildMaterials() {
+  for (const pk of ATLASES) {
+    const t = await texLoad('./assets/scene3d/atlas_' + pk + '.webp');
+    if (!t) { console.warn('atlas missing', pk); continue; }
+    t.colorSpace = THREE.SRGBColorSpace; t.flipY = true;
+    t.magFilter = THREE.NearestFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true;
+    const lo = lowResTex(t);
+    mats[pk] = {
+      hi: { solid: new THREE.MeshLambertMaterial({ map: t }), cut: new THREE.MeshLambertMaterial({ map: t, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }) },
+      lo: { solid: new THREE.MeshLambertMaterial({ map: lo }), cut: new THREE.MeshLambertMaterial({ map: lo, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide }) }
+    };
+  }
+  const gt = await texLoad('./assets/scene3d/grass.webp');
+  if (gt) { gt.colorSpace = THREE.SRGBColorSpace; gt.flipY = true; grassMat = new THREE.MeshLambertMaterial({ map: gt, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }); }
+}
+
+/* ---- catalogue ---- */
+let PROPS = { scenes: {}, pack: {} };
+let CATS = [];
+const catOf = {}, nameList = [];
+async function loadCatalogue() {
+  PROPS = await fetch('./assets/scene3d/props-editor.json').then(r => r.ok ? r.json() : Promise.reject())
+    .catch(() => fetch('./assets/scene3d/props.json').then(r => r.json()));
+  CATS = Object.keys(PROPS.scenes).sort();
+  for (const c of CATS) for (const n of PROPS.scenes[c]) { if (!catOf[n]) { catOf[n] = c; nameList.push(n); } }
+}
+
+const isGrass = n => /Grass_Patch|Flowers_Patch/i.test(n);
+const isCut = n => /Bush|Plant|Palm_Tree|Fern|Reed|Vine|Flower|Nettle|Leaves|Water_Plant|Twigs|Aspen|Shrub|Leaf/i.test(n);
+const gltf = new GLTFLoader();
+const sourceCache = {};
+async function getSource(name) {
+  if (sourceCache[name]) return sourceCache[name];
+  const g = (await gltf.loadAsync(MODELS + name + '.glb')).scene;
+  const pk = PROPS.pack[name] || 'TAI';
+  const bank = mats[pk] || mats.TAI;
+  const grass = isGrass(name), cut = isCut(name);
+  const hi = grass ? (grassMat || bank.hi.solid) : cut ? bank.hi.cut : bank.hi.solid;
+  const lo = grass ? hi : cut ? bank.lo.cut : bank.lo.solid;
+  g.traverse(o => { if (o.isMesh) { o.material = hi; o.castShadow = !grass; o.receiveShadow = true; } });
+  /* Props across six packs range from a 0.2m coconut to a 20m gateway. Placed at
+     native size the small ones are invisible and the big ones swallow the camera —
+     which reads as "nothing happens". Normalise the longest dimension into a
+     visible band (like the game's spawnSized), and remember the base so the ground
+     seat is correct. minY seats the prop ON the ground rather than through it. */
+  const box = new THREE.Box3().setFromObject(g);
+  const size = box.getSize(new THREE.Vector3());
+  const maxDim = Math.max(size.x, size.y, size.z) || 1;
+  const norm = maxDim < 1.2 ? 1.2 / maxDim : maxDim > 12 ? 12 / maxDim : 1;
+  g.userData = { matHi: hi, matLo: lo, canCast: !grass, norm, minY: box.min.y };
+  sourceCache[name] = g;
+  return g;
+}
+
+/* ============================================================
+   Placement + selection (unchanged core, plus LOD userData).
+   ============================================================ */
+const placed = new THREE.Group(); scene.add(placed);
+let brush = null, selected = null, box = null, randRotate = true, lodOn = true, playerMode = false;
+const nEl = document.getElementById('n');
+const updateCount = () => nEl.textContent = placed.children.length;
+
+async function spawn(name, x, z, { rotY = 0, scale = 1, y } = {}) {
+  const src = await getSource(name);
+  const o = src.clone(true);
+  const applied = src.userData.norm * scale;             // norm makes it visible; scale is the user multiplier
+  o.scale.setScalar(applied); o.rotation.y = rotY;
+  const seatY = -src.userData.minY * applied;            // sit the base on the ground
+  o.position.set(x, y === undefined ? seatY : y, z);
+  o.userData = { name, scaleF: scale, norm: src.userData.norm, minY: src.userData.minY, matHi: src.userData.matHi, matLo: src.userData.matLo, canCast: src.userData.canCast, lod: 0 };
+  placed.add(o); updateCount();
+  return o;
+}
+function select(o) {
+  selected = o;
+  if (box) { scene.remove(box); box.geometry.dispose(); box = null; }
+  if (o) { box = new THREE.BoxHelper(o, 0xffcc33); scene.add(box); }
+  syncInspector();
+}
+function refreshBox() { if (box) box.update(); }
+function deleteSelected() { if (!selected) return; placed.remove(selected); select(null); updateCount(); }
+async function duplicateSelected() {
+  if (!selected) return; const s = selected;
+  select(await spawn(s.userData.name, s.position.x + 2, s.position.z + 2, { rotY: s.rotation.y, scale: s.userData.scaleF, y: s.position.y }));
+}
+
+/* LOD: far props switch to the quarter-res atlas and stop casting shadows. */
+let lodAcc = 0;
+function updateLOD(dt) {
+  if (!lodOn) return;
+  lodAcc += dt; if (lodAcc < 0.15) return; lodAcc = 0;
+  const cp = camera.position;
+  for (const o of placed.children) {
+    const d = cp.distanceTo(o.position);
+    const bucket = d > LOD_FAR ? 2 : d > LOD_MID ? 1 : 0;
+    if (o.userData.lod === bucket) continue;
+    o.userData.lod = bucket;
+    const useLo = bucket === 2, cast = bucket === 0 && o.userData.canCast;
+    const mat = useLo ? o.userData.matLo : o.userData.matHi;
+    o.traverse(m => { if (m.isMesh) { m.material = mat; m.castShadow = cast; } });
+  }
+}
+function resetLOD() { for (const o of placed.children) { o.userData.lod = -1; } lodAcc = 1; }
+
+/* ---- inspector ---- */
+const inspNone = document.getElementById('insp-none'), insp = document.getElementById('insp');
+const inName = document.getElementById('insp-name');
+const inX = document.getElementById('in-x'), inY = document.getElementById('in-y'), inZ = document.getElementById('in-z');
+const inRot = document.getElementById('in-rot'), inRotN = document.getElementById('in-rotn');
+const inScl = document.getElementById('in-scl'), inSclN = document.getElementById('in-scln');
+let syncing = false;
+function syncInspector() {
+  const on = !!selected;
+  insp.style.display = on ? '' : 'none'; inspNone.style.display = on ? 'none' : '';
+  if (!on) return;
+  syncing = true;
+  inName.textContent = selected.userData.name;
+  inX.value = round(selected.position.x); inY.value = round(selected.position.y); inZ.value = round(selected.position.z);
+  const deg = ((selected.rotation.y * R2D) % 360 + 360) % 360;
+  inRot.value = deg.toFixed(0); inRotN.value = deg.toFixed(0);
+  inScl.value = selected.userData.scaleF; inSclN.value = selected.userData.scaleF;
+  syncing = false;
+}
+function applyInspector() { if (!selected || syncing) return; selected.position.set(+inX.value || 0, +inY.value || 0, +inZ.value || 0); refreshBox(); }
+[inX, inY, inZ].forEach(el => el.addEventListener('input', applyInspector));
+function setRotDeg(d) { if (!selected) return; selected.rotation.y = d * D2R; inRot.value = d.toFixed(0); inRotN.value = d.toFixed(0); refreshBox(); }
+inRot.addEventListener('input', () => { if (!syncing) setRotDeg(+inRot.value || 0); });
+inRotN.addEventListener('input', () => { if (!syncing) setRotDeg(+inRotN.value || 0); });
+function setScale(s) {
+  if (!selected) return; s = Math.max(0.05, s);
+  const applied = selected.userData.norm * s;
+  selected.scale.setScalar(applied); selected.userData.scaleF = s;
+  selected.position.y = -selected.userData.minY * applied;   // keep it grounded as it grows
+  inScl.value = s; inSclN.value = round(s); inY.value = round(selected.position.y);
+  refreshBox();
+}
+inScl.addEventListener('input', () => { if (!syncing) setScale(+inScl.value || 1); });
+inSclN.addEventListener('input', () => { if (!syncing) setScale(+inSclN.value || 1); });
+document.getElementById('b-del').onclick = deleteSelected;
+document.getElementById('b-dup').onclick = duplicateSelected;
+document.getElementById('b-desel').onclick = () => select(null);
+
+/* ============================================================
+   Thumbnails — a tiny second renderer draws each prop to a data-URL the first time
+   its row scrolls into view, then caches it. Lazy + concurrency-capped so scrolling
+   1,150 rows never loads 1,150 GLBs at once.
+   ============================================================ */
+const thumbR = new THREE.WebGLRenderer({ alpha: true, antialias: true, preserveDrawingBuffer: true });
+thumbR.setPixelRatio(1); thumbR.setSize(60, 60);
+const thumbScene = new THREE.Scene();
+thumbScene.add(new THREE.HemisphereLight(0xffffff, 0x777777, 1.25));
+const thumbKey = new THREE.DirectionalLight(0xffffff, 1.5); thumbKey.position.set(3, 6, 4); thumbScene.add(thumbKey);
+const thumbCam = new THREE.PerspectiveCamera(35, 1, 0.01, 2000);
+const thumbCache = {}; const thumbQueue = []; let thumbBusy = 0;
+async function renderThumb(name) {
+  if (thumbCache[name]) return thumbCache[name];
+  const src = await getSource(name);
+  const o = src.clone(true);
+  const box = new THREE.Box3().setFromObject(o);
+  const c = box.getCenter(new THREE.Vector3()), s = box.getSize(new THREE.Vector3());
+  o.position.sub(c);
+  thumbScene.add(o);
+  const r = Math.max(s.x, s.y, s.z) * 0.5 || 1;
+  const d = r / Math.tan(35 * Math.PI / 360) * 1.35;
+  thumbCam.position.set(d * 0.75, d * 0.65, d); thumbCam.lookAt(0, 0, 0);
+  thumbR.render(thumbScene, thumbCam);
+  const url = thumbR.domElement.toDataURL('image/webp', 0.8);
+  thumbScene.remove(o);
+  thumbCache[name] = url;
+  return url;
+}
+function pumpThumbs() {
+  while (thumbBusy < 3 && thumbQueue.length) {
+    const img = thumbQueue.shift();
+    if (!img.isConnected) continue;
+    thumbBusy++;
+    renderThumb(img.dataset.name).then(u => { if (img.isConnected) img.src = u; }).catch(() => {}).finally(() => { thumbBusy--; pumpThumbs(); });
+  }
+}
+const thumbIO = new IntersectionObserver(es => {
+  for (const e of es) if (e.isIntersecting) {
+    const img = e.target; thumbIO.unobserve(img);
+    if (thumbCache[img.dataset.name]) img.src = thumbCache[img.dataset.name];
+    else { thumbQueue.push(img); pumpThumbs(); }
+  }
+}, { root: document.getElementById('list'), rootMargin: '150px' });
+
+/* ---- palette ---- */
+const listEl = document.getElementById('list'), searchEl = document.getElementById('search'), catsEl = document.getElementById('cats');
+const catNEl = document.getElementById('cat-n');
+let activeCat = 'all', query = '';
+function buildCats() {
+  catsEl.innerHTML = '';
+  for (const c of ['all', ...CATS]) {
+    const d = document.createElement('div');
+    d.className = 'cat' + (c === activeCat ? ' on' : '');
+    d.textContent = c + (c === 'all' ? '' : ' ' + PROPS.scenes[c].length);
+    d.onclick = () => { activeCat = c; buildCats(); buildList(); };
+    catsEl.appendChild(d);
+  }
+}
+function buildList() {
+  thumbIO.disconnect();
+  listEl.innerHTML = '';
+  const q = query.toLowerCase(); let shown = 0;
+  for (const n of nameList) {
+    if (activeCat !== 'all' && catOf[n] !== activeCat) continue;
+    if (q && !n.toLowerCase().includes(q)) continue;
+    shown++;
+    if (shown > 800) continue;   // search/categories narrow; this only caps a giant unfiltered list
+    const d = document.createElement('div');
+    d.className = 'item' + (brush === n ? ' on' : '');
+    d.innerHTML = '<img class="thumb" alt="" data-name="' + n + '"><span class="nm">' + n + '</span><span class="pk">' + (PROPS.pack[n] || '') + '</span>';
+    d.onclick = () => setBrush(brush === n ? null : n);
+    listEl.appendChild(d);
+    const img = d.querySelector('.thumb');
+    if (thumbCache[n]) img.src = thumbCache[n]; else thumbIO.observe(img);
+  }
+  catNEl.textContent = shown;
+}
+searchEl.addEventListener('input', () => { query = searchEl.value; buildList(); });
+const brushEl = document.getElementById('brush');
+function setBrush(n) {
+  brush = n;
+  brushEl.style.display = n ? '' : 'none';
+  brushEl.textContent = n ? ('placing: ' + n + '  (click ground · Esc to cancel)') : '';
+  renderer.domElement.style.cursor = n ? 'crosshair' : '';
+  buildList();
+}
+
+/* ============================================================
+   Pointer.
+   ============================================================ */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+let dragging = false, busy = false;
+function pickAt(e) { const r = renderer.domElement.getBoundingClientRect(); ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1; ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1; ray.setFromCamera(ndc, camera); }
+function topLevel(o) { while (o.parent && o.parent !== placed) o = o.parent; return o.parent === placed ? o : null; }
+function groundPoint() { const h = ray.intersectObject(groundMesh, false)[0]; return h ? h.point : null; }
+
+renderer.domElement.addEventListener('pointerdown', async e => {
+  if (e.button !== 0) return;
+  pickAt(e);
+  if (playerMode) {                         // walk the viewpoint, no editing
+    const gp = groundPoint();
+    if (gp) { const off = camera.position.clone().sub(controls.target); controls.target.set(gp.x, 3, gp.z); camera.position.copy(controls.target).add(off); }
+    return;
+  }
+  const hit = ray.intersectObjects(placed.children, true)[0];
+  if (hit) { select(topLevel(hit.object)); dragging = true; return; }
+  const gp = groundPoint(); if (!gp) return;
+  if (brush) {
+    if (busy) return; busy = true;
+    try { select(await spawn(brush, gp.x, gp.z, { rotY: randRotate ? Math.random() * Math.PI * 2 : 0 })); dragging = true; }
+    catch (err) { console.warn('place failed', brush, err); setBrush(null); }
+    busy = false;
+  } else select(null);
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!dragging || !selected || playerMode) return;
+  pickAt(e); const gp = groundPoint();
+  if (gp) { selected.position.x = gp.x; selected.position.z = gp.z; refreshBox(); syncInspector(); }
+});
+addEventListener('pointerup', () => { dragging = false; });
+
+addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  const step = e.shiftKey ? 15 : 5;
+  if (e.key === 'Escape') { if (brush) setBrush(null); else select(null); return; }
+  if (!selected) return;
+  const deg = selected.rotation.y * R2D;
+  if (e.key === 'e' || e.key === 'E') setRotDeg(deg + step);
+  else if (e.key === 'q' || e.key === 'Q') setRotDeg(deg - step);
+  else if (e.key === ']') setScale(selected.userData.scaleF * 1.06);
+  else if (e.key === '[') setScale(selected.userData.scaleF / 1.06);
+  else if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelected(); }
+  else if (e.key === 'd' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); duplicateSelected(); }
+  else return;
+  syncInspector();
+});
+
+/* ============================================================
+   Zone + ground dropdowns, player view, toggles, IO.
+   ============================================================ */
+const zoneSel = document.getElementById('zone'), groundSel = document.getElementById('ground');
+for (const z of ZONES) { const o = document.createElement('option'); o.value = z.id; o.textContent = z.label; zoneSel.appendChild(o); }
+for (const id in GROUND_TYPES) { const o = document.createElement('option'); o.value = id; o.textContent = GROUND_TYPES[id].label; groundSel.appendChild(o); }
+zoneSel.onchange = () => { curZone = zoneSel.value; const z = ZONES.find(z => z.id === curZone); if (z) setGround(z.ground); };
+groundSel.onchange = () => setGround(groundSel.value);
+
+const pvEl = document.getElementById('pv'), bPv = document.getElementById('b-pv');
+let savedCam = null;
+function setPlayerView(on) {
+  playerMode = on; bPv.classList.toggle('on', on); pvEl.style.display = on ? '' : 'none';
+  if (on) {
+    savedCam = { pos: camera.position.clone(), tgt: controls.target.clone(), fov: camera.fov };
+    const t = controls.target.clone();
+    camera.fov = 47; camera.updateProjectionMatrix();
+    controls.target.set(t.x, 3, t.z); camera.position.set(t.x, 4.4, t.z + 16);
+    controls.maxPolarAngle = Math.PI * 0.53; controls.minDistance = 2; controls.maxDistance = 60;
+    select(null);
+  } else if (savedCam) {
+    camera.fov = savedCam.fov; camera.updateProjectionMatrix();
+    camera.position.copy(savedCam.pos); controls.target.copy(savedCam.tgt);
+    controls.maxPolarAngle = Math.PI * 0.495; controls.minDistance = 4; controls.maxDistance = 400;
+  }
+  controls.update();
+}
+bPv.onclick = () => setPlayerView(!playerMode);
+
+const bGrid = document.getElementById('b-grid'); bGrid.onclick = () => { grid.visible = !grid.visible; bGrid.classList.toggle('on', grid.visible); };
+const bLod = document.getElementById('b-lod'); bLod.onclick = () => { lodOn = !lodOn; bLod.classList.toggle('on', lodOn); scene.fog = lodOn ? new THREE.Fog(SKY, 150, 340) : null; if (!lodOn) { for (const o of placed.children) { o.traverse(m => { if (m.isMesh) { m.material = o.userData.matHi; m.castShadow = o.userData.canCast; } }); o.userData.lod = 0; } } else resetLOD(); };
+const bRand = document.getElementById('b-rand'); bRand.onclick = () => { randRotate = !randRotate; bRand.classList.toggle('on', randRotate); };
+
+function toEnv() {
+  return {
+    format: 'castaway-env', version: 2, zone: curZone,
+    ground: { type: curGround, size: [GROUND, GROUND] },
+    props: placed.children.map(o => ({ name: o.userData.name, pos: [round(o.position.x), round(o.position.y), round(o.position.z)], rotY: round(o.rotation.y), scale: round(o.userData.scaleF) }))
+  };
+}
+async function fromEnv(env) {
+  for (const c of [...placed.children]) placed.remove(c);
+  select(null); updateCount();
+  if (env && env.zone) { curZone = env.zone; zoneSel.value = env.zone; }
+  if (env && env.ground && env.ground.type) setGround(env.ground.type);
+  if (!env || !Array.isArray(env.props)) return;
+  for (const p of env.props) {
+    try { await spawn(p.name, (p.pos && p.pos[0]) || 0, (p.pos && p.pos[2]) || 0, { y: (p.pos && p.pos[1]) || 0, rotY: p.rotY || 0, scale: p.scale || 1 }); }
+    catch (err) { console.warn('skip', p.name, err); }
+  }
+  resetLOD();
+}
+
+document.getElementById('b-new').onclick = () => { if (placed.children.length && !confirm('Clear the current environment?')) return; for (const c of [...placed.children]) placed.remove(c); select(null); updateCount(); };
+async function save() {
+  const json = JSON.stringify(toEnv(), null, 2);
+  if (window.showSaveFilePicker) {
+    try { const h = await showSaveFilePicker({ suggestedName: (curZone || 'environment') + '.json', types: [{ description: 'Castaway environment', accept: { 'application/json': ['.json'] } }] }); const w = await h.createWritable(); await w.write(json); await w.close(); flash('saved ' + h.name); return; }
+    catch (err) { if (err && err.name === 'AbortError') return; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([json], { type: 'application/json' })); a.download = (curZone || 'environment') + '.json'; a.click(); flash('downloaded');
+}
+document.getElementById('b-save').onclick = save;
+document.getElementById('b-copy').onclick = async () => { try { await navigator.clipboard.writeText(JSON.stringify(toEnv(), null, 2)); flash('copied ' + placed.children.length + ' props'); } catch { flash('clipboard blocked — use Save'); } };
+const fileEl = document.getElementById('file');
+document.getElementById('b-load').onclick = () => fileEl.click();
+fileEl.addEventListener('change', async () => { const f = fileEl.files[0]; if (!f) return; try { await fromEnv(JSON.parse(await f.text())); flash('loaded ' + f.name); } catch (err) { flash('bad file'); console.warn(err); } fileEl.value = ''; });
+document.getElementById('b-help').onclick = () => alert('Castaway Environment Editor\n\n' +
+  '• Zone / Ground dropdowns set the terrain you are dressing (saved with the env).\n' +
+  '• Pick a prop (left panel), left-click ground to place; left-click+drag to move.\n' +
+  '• Right-drag orbit, middle-drag pan, wheel zoom.\n' +
+  '• Player view: preview from a low game-like camera; click the ground to walk it.\n' +
+  '• LOD: far props drop to a quarter-res atlas and stop casting shadows.\n' +
+  '• Q/E rotate, [ ] scale, Del delete, Ctrl+D duplicate, Esc deselect.\n' +
+  '• Save env writes {zone, ground, props:[{name,pos,rotY,scale}]}.');
+
+let flashT = 0;
+function flash(msg) { brushEl.style.display = ''; brushEl.textContent = msg; clearTimeout(flashT); flashT = setTimeout(() => { if (!brush) brushEl.style.display = 'none'; else setBrush(brush); }, 1600); }
+
+addEventListener('resize', () => { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth, innerHeight); });
+let last = performance.now();
+renderer.setAnimationLoop(() => { const now = performance.now(); const dt = Math.min(0.05, (now - last) / 1000); last = now; controls.update(); updateLOD(dt); renderer.render(scene, camera); });
+
+(async function boot() {
+  try {
+    setPct('materials…'); await buildMaterials();
+    setPct('ground…'); await buildGround();
+    setPct('catalogue…'); await loadCatalogue();
+    setGround('sand'); buildCats(); buildList();
+    loadEl.remove();
+    window.__editor = { spawn, toEnv, fromEnv, select, setGround, setPlayerView, count: () => placed.children.length, names: () => nameList.slice(), cats: () => CATS.slice() };
+  } catch (err) { loadEl.innerHTML = 'FAILED TO LOAD<br><span>' + (err && err.message || err) + '</span>'; console.error(err); }
+})();
+</script>
+</body>
+</html>

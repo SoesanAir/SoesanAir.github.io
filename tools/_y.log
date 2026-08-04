@@ -1,0 +1,34 @@
+running 29 suite(s)
+
+smoke               PASS
+tribe-test          PASS
+endgame-test        PASS
+survival-test       PASS
+camp-test           retry1… PASS  (infra flake, passed on retry 1)
+camp-ui-test        PASS
+evac-test           PASS
+minigame-test       PASS
+dilemma-test        retry1… PASS  (infra flake, passed on retry 1)
+voice-test          PASS
+tap-test            PASS
+log-export-test     PASS
+maroon-flow-test    PASS
+brief-size-test     PASS
+condition-test      retry1… PASS  (infra flake, passed on retry 1)
+circle-meeting-test PASS
+chal-rails-test     PASS
+chal-result-look    PASS
+tribal-test         PASS
+reward-test         PASS
+social-test         PASS
+splash-test         PASS
+howto-test          PASS
+howto-live          PASS
+logaccess-test      PASS
+maze-speed          PASS
+tribalqa-test       PASS
+island3d-test       PASS
+chal-fair           PASS
+
+----------------------------------------------------
+29/29 passed, 3 needed a retry (camp-test, dilemma-test, condition-test)

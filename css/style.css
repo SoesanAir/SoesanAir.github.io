@@ -1,0 +1,1869 @@
+/* ============================================================
+   CASTAWAY — mobile landscape social-sim
+   Design language: "Expedition Broadcast"
+   Day   = flat chunky island diorama, thick outlines
+   Night = indigo + ember ritual
+   UI    = reality-TV chyron graphics: condensed caps, angular
+           tags, hard shadows. No emoji. No candy.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:ital,wght@0,400;0,600;0,700;1,400&display=swap');
+
+:root {
+  /* Day palette (locked art direction) */
+  --sky: #5BAEE8;
+  --sky-deep: #3E8FCC;
+  --sky-high: #A8D4F0;
+  --sand: #E8CC8E;
+  --sand-deep: #D4B36F;
+  --palm: #4A8F5F;
+  --palm-deep: #38714A;
+  --ocean: #7AC4D8;
+  --ocean-deep: #5AA8BE;
+
+  /* Ritual night palette */
+  --indigo: #0A0510;
+  --violet: #241638;
+  --violet-soft: #3A2757;
+  --ember: #E8873A;
+  --ember-hot: #F2A65A;
+  --cream: #E8DBA8;
+
+  /* Ink & paper */
+  --ink: #1D1B16;
+  --paper: #FFF8EA;
+  --paper-dim: #EFE4CA;
+
+  /* Feedback */
+  --good: #4A8F5F;
+  --bad: #C94F3D;
+  --warn: #E0A63C;
+
+  --outline: 3px;
+  --radius: 6px;
+  --radius-big: 10px;
+
+  --font-display: 'Barlow Condensed', 'Arial Narrow', sans-serif;
+  --font-body: 'Barlow', 'Segoe UI', sans-serif;
+  --font-ritual: Georgia, 'Times New Roman', serif;
+
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; overflow: hidden; }
+
+body {
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--indigo);
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  padding: var(--safe-t) var(--safe-r) var(--safe-b) var(--safe-l);
+  font-size: clamp(13px, 2.2vh, 18px);
+}
+
+/* Forced landscape: on a portrait device the whole app renders
+   rotated 90° so the game is always landscape — no rotate prompt.
+   (Fixed-position overlays inside #app rotate with it; the tutorial
+   converts coach-mark coordinates in game.js.) */
+@media (orientation: portrait) {
+  #app {
+    inset: auto;
+    top: 0; left: 0;
+    width: 100vh; height: 100vw;
+    width: 100dvh; height: 100dvw;
+    transform-origin: top left;
+    transform: rotate(90deg) translateY(-100%);
+    font-size: clamp(13px, 2.2vw, 18px);
+  }
+}
+
+/* ---------- Screen stack ---------- */
+.screen {
+  position: absolute; inset: 0;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+.screen.active { display: flex; animation: screen-in 220ms ease-out; }
+@keyframes screen-in {
+  from { opacity: 0; transform: scale(1.012); }
+  to { opacity: 1; transform: scale(1); }
+}
+.screen.day-bg {
+  background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 40%, var(--ocean) 58%, var(--sand) 58.2%, var(--sand-deep) 100%);
+}
+.screen.night-bg {
+  background: radial-gradient(ellipse at 50% 90%, var(--violet-soft) 0%, var(--violet) 45%, var(--indigo) 100%);
+  color: var(--cream);
+}
+
+/* ---------- Typography ---------- */
+h1, h2, h3, .display {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-weight: 700;
+}
+.title-logo {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: clamp(52px, 13vh, 92px);
+  line-height: 0.95;
+  letter-spacing: 3px;
+  color: var(--paper);
+  text-shadow: 0 var(--outline) 0 var(--ink), var(--outline) 0 0 var(--ink), calc(-1 * var(--outline)) 0 0 var(--ink), 0 calc(-1 * var(--outline)) 0 var(--ink), 4px 5px 0 rgba(29, 27, 22, 0.5);
+}
+.subtitle {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 2.5px;
+  font-weight: 600;
+  color: var(--paper);
+  text-shadow: 1px 2px 0 rgba(29, 27, 22, 0.4);
+}
+.ritual-text { font-family: var(--font-ritual); font-style: italic; color: var(--cream); }
+
+/* ---------- Buttons: broadcast plates ---------- */
+.btn {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.02em;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 0 3px 0 var(--ink);
+  padding: 10px 18px;
+  min-height: 46px;
+  min-width: 46px;
+  cursor: pointer;
+  transition: transform 60ms ease, box-shadow 60ms ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.btn.primary { background: var(--palm); color: var(--paper); }
+.btn.ocean { background: var(--ocean); }
+.btn.sand { background: var(--sand); }
+.btn.danger { background: var(--bad); color: var(--paper); }
+.btn.ember { background: var(--ember); color: var(--indigo); border-color: var(--indigo); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.6); }
+.btn.ghost { background: transparent; color: var(--paper); border-color: var(--paper); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+.btn:disabled { opacity: 0.45; pointer-events: none; }
+.btn.small { min-height: 38px; padding: 6px 12px; font-size: 0.9em; }
+
+/* ---------- Panels ---------- */
+.panel {
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius-big);
+  box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45);
+}
+.night-bg .panel {
+  background: var(--violet);
+  border-color: var(--ember);
+  color: var(--cream);
+  box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Chyron tags (was: chips) ---------- */
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 0.82em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 14px 4px 10px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  border: none;
+}
+.chip.good { background: var(--good); }
+.chip.bad { background: var(--bad); }
+.chip.warn { background: var(--warn); color: var(--ink); }
+.chip.tribe-tidal { background: var(--ocean-deep); }
+.chip.tribe-ember { background: var(--ember); color: var(--indigo); }
+.chip.wx-sunny { background: var(--warn); color: var(--ink); }
+.chip.wx-rainy { background: var(--ocean-deep); }
+.chip.wx-stormy { background: #4E4A5A; }
+.chip.wx-hot { background: var(--bad); }
+
+/* ---------- HUD ---------- */
+#hud {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px 6px;
+  flex: 0 0 auto;
+  z-index: 25;
+  /* The condition and camp chips pushed this row past its width and every label
+     wrapped and clipped mid-word. Chips never wrap internally; the row wraps
+     instead, which costs one line only when it actually runs out of space. */
+  flex-wrap: wrap; row-gap: 5px;
+}
+#hud .chip, #hud .day-chip, #hud .btn { white-space: nowrap; flex: 0 0 auto; }
+#hud .spacer { flex: 1 1 auto; min-width: 0; }
+#hud .spacer { flex: 1; }
+#hud .day-chip {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 1.25em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 4px 18px 4px 12px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+}
+
+/* ============================================================
+   THE BEACH — layered living diorama
+   ============================================================ */
+#camp-main { flex: 1; display: flex; min-height: 0; }
+#camp-scene { flex: 1.45; position: relative; min-width: 0; overflow: hidden; }
+#camp-side {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  gap: 8px;
+  padding: 0 12px 10px 4px;
+  z-index: 24;
+}
+
+#beach-sky {
+  position: absolute; inset: 0 0 42% 0;
+  background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 60%, var(--sky-high) 100%);
+  transition: background 1400ms ease, filter 1400ms ease;
+}
+#beach-sun {
+  position: absolute; top: 10%; right: 9%;
+  width: 54px; height: 54px;
+  border-radius: 50%;
+  background: #F7D774;
+  border: var(--outline) solid var(--ink);
+  box-shadow: 0 0 0 9px rgba(247, 215, 116, 0.22);
+  transition: opacity 1200ms ease, transform 1200ms ease;
+}
+#beach-moon {
+  position: absolute; top: 9%; right: 12%;
+  width: 46px; height: 46px;
+  border-radius: 50%;
+  background: var(--cream);
+  box-shadow: inset -11px -5px 0 rgba(36, 22, 56, 0.55), 0 0 20px rgba(232, 219, 168, 0.3);
+  opacity: 0;
+  transition: opacity 1200ms ease;
+}
+#beach-sea {
+  position: absolute; left: 0; right: 0; top: 44%; height: 17%;
+  background: linear-gradient(180deg, var(--ocean-deep) 0%, var(--ocean) 100%);
+  border-top: var(--outline) solid var(--ink);
+  transition: filter 1400ms ease;
+  overflow: hidden;
+}
+.wave {
+  position: absolute; left: -50%; width: 200%; height: 7px;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.45) 0 24px, transparent 24px 58px);
+  border-radius: 4px;
+  animation: wave-drift 16s linear infinite;
+}
+.wave.w1 { top: 26%; }
+.wave.w2 { top: 62%; animation-duration: 23s; animation-direction: reverse; opacity: 0.7; }
+@keyframes wave-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(9%); }
+}
+#beach-sand {
+  position: absolute; left: 0; right: 0; top: 61%; bottom: 0;
+  background: linear-gradient(180deg, var(--sand) 0%, var(--sand-deep) 100%);
+  transition: filter 1400ms ease;
+}
+
+/* Palms */
+.palm { position: absolute; z-index: 8; pointer-events: none; }
+.palm.p1 { left: 3%; top: 22%; }
+.palm.p2 { right: 5%; top: 30%; transform: scale(0.8) scaleX(-1); }
+.palm .trunk {
+  width: 13px; height: 120px;
+  background: #8A5A38;
+  border: var(--outline) solid var(--ink);
+  border-radius: 8px;
+  transform: rotate(7deg);
+  margin-left: 34px;
+}
+.palm .fronds {
+  position: absolute; top: -14px; left: 0;
+  width: 90px; height: 44px;
+  animation: palm-sway 5.5s ease-in-out infinite;
+  transform-origin: 50% 100%;
+}
+.palm .frond {
+  position: absolute; left: 18px; top: 12px;
+  width: 58px; height: 17px;
+  background: var(--palm);
+  border: var(--outline) solid var(--ink);
+  border-radius: 50% 62% 50% 62%;
+}
+.palm .frond:nth-child(1) { transform: rotate(-38deg); }
+.palm .frond:nth-child(2) { transform: rotate(-9deg); left: 26px; }
+.palm .frond:nth-child(3) { transform: rotate(22deg); left: 22px; top: 16px; }
+.palm .frond:nth-child(4) { transform: rotate(58deg); left: 8px; top: 18px; background: var(--palm-deep); }
+@keyframes palm-sway {
+  0%, 100% { transform: rotate(-1.6deg); }
+  50% { transform: rotate(1.6deg); }
+}
+
+/* Campfire */
+#campfire { position: absolute; bottom: 7%; left: 48%; width: 46px; height: 60px; z-index: 9; pointer-events: none; }
+#campfire .log { position: absolute; bottom: 2px; width: 40px; height: 9px; background: #6B4A2E; border: 2px solid var(--ink); border-radius: 4px; }
+#campfire .log.l1 { transform: rotate(18deg); left: 0; }
+#campfire .log.l2 { transform: rotate(-16deg); left: 6px; }
+.flame {
+  position: absolute; bottom: 8px; left: 50%;
+  width: 26px; height: 36px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 88%, var(--ember-hot) 0%, var(--ember) 55%, transparent 78%);
+  border-radius: 50% 50% 42% 42%;
+  animation: flicker 360ms ease-in-out infinite alternate;
+  transition: transform 1200ms ease;
+}
+.flame.f2 { width: 15px; height: 22px; animation-delay: -150ms; opacity: 0.85; }
+@keyframes flicker {
+  from { transform: translateX(-50%) scaleY(1); opacity: 0.9; }
+  to { transform: translateX(-52%) scaleY(1.14) scaleX(0.93); opacity: 1; }
+}
+
+/* ---------- Figures: the living cast ---------- */
+#figures { position: absolute; inset: 0; z-index: 15; }
+.bfig {
+  position: absolute; bottom: 4%;
+  width: clamp(46px, 8.5%, 88px);
+  display: flex; flex-direction: column; align-items: center;
+  cursor: pointer;
+  transition-property: left;
+  transition-timing-function: linear;
+  filter: drop-shadow(0 3px 2px rgba(29, 27, 22, 0.3));
+  z-index: 18;
+}
+.bfig.back { bottom: 15%; transform: scale(0.8); z-index: 14; }
+.bfig:active .sprite,
+.mfig:active .sprite { transform: scale(1.07); }
+.bfig .sprite,
+.mfig .sprite { transition: transform 120ms ease; animation: idle-sway 3.6s ease-in-out infinite; transform-origin: bottom center; }
+.bfig img { width: 100%; display: block; transform: scaleX(var(--flip, 1)); }
+.bfig.walking .sprite,
+.mfig.walking .sprite { animation: walk-bob 0.36s ease-in-out infinite; }
+@keyframes idle-sway {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-2px) rotate(0.6deg); }
+}
+@keyframes walk-bob {
+  0%, 100% { transform: translateY(0) rotate(-1.4deg); }
+  50% { transform: translateY(-5px) rotate(1.4deg); }
+}
+
+/* ---------- Cut-out rig ----------
+   .rig is a percentage-space canvas; each .part is a window onto the same
+   recolored sprite (--sprite) offset by background-position. Parts are
+   generated by tools/build-rig.js, so only the animation lives here.
+   --phase staggers each castaway's idle loop. Stacking order is DOM order:
+   legs, arms, torso, head — the torso hides the shoulder and hip seams. */
+/* .sprite must span the figure so the rig's percentage box has a width to
+   resolve against (the old single <img> carried its own intrinsic size). */
+.bfig .sprite,
+.mfig .sprite { width: 100%; }
+.bfig .rig,
+.mfig .rig {
+  position: relative;
+  width: 100%;
+  transform: scaleX(var(--flip, 1));
+  transform-origin: bottom center;
+}
+.bfig .rig > .part,
+.mfig .rig > .part {
+  position: absolute;
+  background-image: var(--sprite);
+  background-repeat: no-repeat;
+  /* No will-change here on purpose: 18 castaways x 6 parts would ask the
+     compositor for ~108 layers. Transform-only keyframes are fast anyway. */
+}
+
+/* ---------- Killing the A-pose ----------
+   The source art is drawn in an A-pose: arms splayed ~35deg off the body,
+   stance wide. That reads as a mannequin, not a person. Every arm and leg
+   keyframe below is composed against these rest angles, so limbs sit
+   naturally in EVERY state and the A-pose never shows. Tune here. */
+.bfig .rig,
+.mfig .rig {
+  --armL-rest: -20deg;   /* negative swings the left arm in toward the body */
+  --armR-rest: 20deg;
+  --legL-rest: -1.5deg;  /* close the stance slightly */
+  --legR-rest: 1.5deg;
+}
+.bfig .rig > .legL,
+.mfig .rig > .legL { transform: rotate(var(--legL-rest)); }
+.bfig .rig > .legR,
+.mfig .rig > .legR { transform: rotate(var(--legR-rest)); }
+
+/* Idle: breathing torso, drifting head, arms barely alive. */
+.bfig .rig > .torso,
+.mfig .rig > .torso { animation: rig-breathe 3.9s ease-in-out infinite; animation-delay: var(--phase, 0s); }
+.bfig .rig > .head,
+.mfig .rig > .head  { animation: rig-head-idle 5.1s ease-in-out infinite; animation-delay: var(--phase, 0s); }
+.bfig .rig > .armL,
+.mfig .rig > .armL  { animation: rig-armL-idle 4.4s ease-in-out infinite; animation-delay: var(--phase, 0s); }
+.bfig .rig > .armR,
+.mfig .rig > .armR  { animation: rig-armR-idle 4.7s ease-in-out infinite; animation-delay: var(--phase, 0s); }
+@keyframes rig-breathe {
+  0%, 100% { transform: scaleY(1) translateY(0); }
+  50% { transform: scaleY(1.018) translateY(-0.6%); }
+}
+@keyframes rig-head-idle {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  30% { transform: rotate(-1.6deg) translateY(-0.8%); }
+  70% { transform: rotate(1.4deg) translateY(-0.4%); }
+}
+@keyframes rig-armL-idle { 0%, 100% { transform: rotate(var(--armL-rest)); } 50% { transform: rotate(calc(var(--armL-rest) + 1.8deg)); } }
+@keyframes rig-armR-idle { 0%, 100% { transform: rotate(var(--armR-rest)); } 50% { transform: rotate(calc(var(--armR-rest) - 2deg)); } }
+
+/* Walk: legs alternate about the hip, arms counter-swing, torso leans into it.
+   Front-facing, so steps read as swing + lift rather than stride depth. */
+.bfig.walking .rig > .legL,
+.mfig.walking .rig > .legL  { animation: rig-legL-walk 0.52s ease-in-out infinite; }
+.bfig.walking .rig > .legR,
+.mfig.walking .rig > .legR  { animation: rig-legR-walk 0.52s ease-in-out infinite; }
+.bfig.walking .rig > .armL,
+.mfig.walking .rig > .armL  { animation: rig-armL-walk 0.52s ease-in-out infinite; }
+.bfig.walking .rig > .armR,
+.mfig.walking .rig > .armR  { animation: rig-armR-walk 0.52s ease-in-out infinite; }
+.bfig.walking .rig > .torso,
+.mfig.walking .rig > .torso { animation: rig-torso-walk 0.26s ease-in-out infinite; }
+.bfig.walking .rig > .head,
+.mfig.walking .rig > .head  { animation: rig-head-walk 0.26s ease-in-out infinite; }
+@keyframes rig-legL-walk {
+  0%, 100% { transform: rotate(calc(var(--legL-rest) + 6deg)) translateY(0); }
+  50% { transform: rotate(calc(var(--legL-rest) - 5deg)) translateY(-3%); }
+}
+@keyframes rig-legR-walk {
+  0%, 100% { transform: rotate(calc(var(--legR-rest) - 5deg)) translateY(-3%); }
+  50% { transform: rotate(calc(var(--legR-rest) + 6deg)) translateY(0); }
+}
+@keyframes rig-armL-walk { 0%, 100% { transform: rotate(calc(var(--armL-rest) - 5deg)); } 50% { transform: rotate(calc(var(--armL-rest) + 5deg)); } }
+@keyframes rig-armR-walk { 0%, 100% { transform: rotate(calc(var(--armR-rest) + 5deg)); } 50% { transform: rotate(calc(var(--armR-rest) - 5deg)); } }
+@keyframes rig-torso-walk { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-1.2%) rotate(0.8deg); } }
+@keyframes rig-head-walk { 0%, 100% { transform: translateY(0.6%) rotate(0deg); } 50% { transform: translateY(0) rotate(-0.8deg); } }
+
+/* Talking: nodding head plus a hand that actually moves while a line is up. */
+.bfig.em-talking .rig > .head,
+.mfig.em-talking .rig > .head { animation: rig-head-talk 0.62s ease-in-out infinite; }
+.bfig.em-talking .rig > .armR,
+.mfig.em-talking .rig > .armR { animation: rig-arm-gesture 0.94s ease-in-out infinite; }
+.bfig.em-talking .rig > .armL,
+.mfig.em-talking .rig > .armL { animation: rig-arm-gesture-alt 1.22s ease-in-out infinite; }
+@keyframes rig-head-talk {
+  0%, 100% { transform: rotate(-1.2deg) translateY(0); }
+  50% { transform: rotate(1.8deg) translateY(-1%); }
+}
+@keyframes rig-arm-gesture {
+  0%, 100% { transform: rotate(var(--armR-rest)); }
+  40% { transform: rotate(calc(var(--armR-rest) - 9deg)) translateY(-1%); }
+  70% { transform: rotate(calc(var(--armR-rest) - 4deg)); }
+}
+@keyframes rig-arm-gesture-alt {
+  0%, 100% { transform: rotate(var(--armL-rest)); }
+  50% { transform: rotate(calc(var(--armL-rest) + 5deg)); }
+}
+
+/* Cheer: both arms up, little hops — challenge wins, immunity. */
+.bfig.em-cheer .sprite,
+.mfig.em-cheer .sprite { animation: rig-hop 0.36s ease-in-out 4; }
+.bfig.em-cheer .rig > .armL,
+.mfig.em-cheer .rig > .armL { animation: rig-armL-cheer 0.36s ease-in-out 4; }
+.bfig.em-cheer .rig > .armR,
+.mfig.em-cheer .rig > .armR { animation: rig-armR-cheer 0.36s ease-in-out 4; }
+.bfig.em-cheer .rig > .head,
+.mfig.em-cheer .rig > .head { animation: rig-head-cheer 0.72s ease-in-out 2; }
+/* Arms can only swing so far before a front-facing cut-out arm reads as
+   detached, so the hop and head lift carry most of the celebration. */
+@keyframes rig-hop { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-11%); } }
+/* Sign convention, now that arms hang: for armL a POSITIVE delta lifts the arm
+   away from the body, negative tucks it in. armR is mirrored. */
+@keyframes rig-armL-cheer { 0%, 100% { transform: rotate(calc(var(--armL-rest) + 26deg)) translateY(-2%); } 50% { transform: rotate(calc(var(--armL-rest) + 36deg)) translateY(-5%); } }
+@keyframes rig-armR-cheer { 0%, 100% { transform: rotate(calc(var(--armR-rest) - 26deg)) translateY(-2%); } 50% { transform: rotate(calc(var(--armR-rest) - 36deg)) translateY(-5%); } }
+@keyframes rig-head-cheer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3%); } }
+
+/* Slump: head drops, shoulders fall, body sags — eliminations, low morale. */
+.bfig.em-slump .rig > .head,
+.mfig.em-slump .rig > .head  { animation: rig-head-slump 2.6s ease-out both; }
+.bfig.em-slump .rig > .torso,
+.mfig.em-slump .rig > .torso { animation: rig-torso-slump 2.6s ease-out both; }
+.bfig.em-slump .rig > .armL,
+.mfig.em-slump .rig > .armL  { animation: rig-armL-slump 2.6s ease-out both; }
+.bfig.em-slump .rig > .armR,
+.mfig.em-slump .rig > .armR  { animation: rig-armR-slump 2.6s ease-out both; }
+@keyframes rig-head-slump { 0% { transform: rotate(0deg) translateY(0); } 30%, 75% { transform: rotate(3deg) translateY(2.5%); } 100% { transform: rotate(0deg) translateY(0); } }
+@keyframes rig-torso-slump { 0% { transform: scaleY(1); } 30%, 75% { transform: scaleY(0.972) translateY(1%); } 100% { transform: scaleY(1); } }
+@keyframes rig-armL-slump { 0% { transform: rotate(var(--armL-rest)); } 30%, 75% { transform: rotate(calc(var(--armL-rest) + 6deg)); } 100% { transform: rotate(var(--armL-rest)); } }
+@keyframes rig-armR-slump { 0% { transform: rotate(var(--armR-rest)); } 30%, 75% { transform: rotate(calc(var(--armR-rest) - 6deg)); } 100% { transform: rotate(var(--armR-rest)); } }
+
+/* Wave: one arm swings up and flaps — greetings, NPC approaches. */
+.bfig.em-wave .rig > .armR,
+.mfig.em-wave .rig > .armR { animation: rig-armR-wave 0.46s ease-in-out 3; }
+.bfig.em-wave .rig > .head,
+.mfig.em-wave .rig > .head { animation: rig-head-talk 0.62s ease-in-out 2; }
+@keyframes rig-armR-wave {
+  0%, 100% { transform: rotate(calc(var(--armR-rest) - 30deg)) translateY(-3%); }
+  50% { transform: rotate(calc(var(--armR-rest) - 42deg)) translateY(-5%); }
+}
+
+/* Shrug: shoulders and arms pop up once — dodged questions, "who knows". */
+.bfig.em-shrug .rig > .armL,
+.mfig.em-shrug .rig > .armL  { animation: rig-armL-shrug 1.2s ease-in-out both; }
+.bfig.em-shrug .rig > .armR,
+.mfig.em-shrug .rig > .armR  { animation: rig-armR-shrug 1.2s ease-in-out both; }
+.bfig.em-shrug .rig > .head,
+.mfig.em-shrug .rig > .head  { animation: rig-head-shrug 1.2s ease-in-out both; }
+@keyframes rig-armL-shrug { 0%, 100% { transform: rotate(var(--armL-rest)) translateY(0); } 40%, 60% { transform: rotate(calc(var(--armL-rest) + 7deg)) translateY(-2.5%); } }
+@keyframes rig-armR-shrug { 0%, 100% { transform: rotate(var(--armR-rest)) translateY(0); } 40%, 60% { transform: rotate(calc(var(--armR-rest) - 7deg)) translateY(-2.5%); } }
+@keyframes rig-head-shrug { 0%, 100% { transform: rotate(0deg) translateY(0); } 40%, 60% { transform: rotate(-2deg) translateY(1.5%); } }
+
+/* Immunity: a prouder, slower stance. */
+.bfig.immune .rig > .torso,
+.mfig.immune .rig > .torso { animation-duration: 2.8s; }
+
+/* Weary: morale under 0.35 shows in the posture — head down, shoulders in,
+   slower breathing. Persistent, unlike the one-shot emotes. */
+.bfig.weary:not(.walking) .rig > .head,
+.mfig.weary:not(.walking) .rig > .head  { animation: rig-head-weary 6.2s ease-in-out infinite; }
+.bfig.weary:not(.walking) .rig > .torso,
+.mfig.weary:not(.walking) .rig > .torso { animation: rig-breathe 6s ease-in-out infinite; }
+.bfig.weary:not(.walking) .rig > .armL,
+.mfig.weary:not(.walking) .rig > .armL  { animation: rig-armL-weary 6.4s ease-in-out infinite; }
+.bfig.weary:not(.walking) .rig > .armR,
+.mfig.weary:not(.walking) .rig > .armR  { animation: rig-armR-weary 6.4s ease-in-out infinite; }
+@keyframes rig-head-weary {
+  0%, 100% { transform: rotate(2.2deg) translateY(2%); }
+  50% { transform: rotate(1.4deg) translateY(1.4%); }
+}
+@keyframes rig-armL-weary { 0%, 100% { transform: rotate(calc(var(--armL-rest) + 4deg)); } 50% { transform: rotate(calc(var(--armL-rest) + 2.6deg)); } }
+@keyframes rig-armR-weary { 0%, 100% { transform: rotate(calc(var(--armR-rest) - 4deg)); } 50% { transform: rotate(calc(var(--armR-rest) - 2.6deg)); } }
+
+/* ---------- Motion preference ----------
+   The old blanket rule here killed EVERY part animation under
+   prefers-reduced-motion, while the whole-body sway on .sprite kept running —
+   so a phone with Reduce Motion on showed idle breathing and nothing else: no
+   walk, no gestures. Reduced motion should drop the ambient decorative loops,
+   not the motion that tells the player what is happening. Walking and emotes
+   are informative, so they stay.
+   `html.motion-full` opts back in to everything; `html.motion-off` kills it all. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .bfig:not(.walking):not(.em-talking):not(.em-cheer):not(.em-wave):not(.em-shrug):not(.em-slump):not(.weary) .rig > .part,
+  html:not(.motion-full) .bfig:not(.walking) .sprite,
+html:not(.motion-full) .mfig:not(.walking) .sprite {
+    animation: none !important;
+  }
+}
+html.motion-off .bfig .rig > .part,
+html.motion-off .bfig .sprite,
+html.motion-off .mfig .sprite { animation: none !important; }
+.bfig.leaving { opacity: 0; transition: opacity 700ms ease; }
+
+.btag {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.66em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 2px 9px 2px 7px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+  margin-top: -5px;
+  z-index: 3;
+  white-space: nowrap;
+  max-width: 130%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bfig.player .btag { background: var(--sand); color: var(--ink); }
+.bfig.immune .btag { background: var(--ocean-deep); }
+
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%) scale(0.6);
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: 9px;
+  padding: 5px 10px;
+  font-size: 0.7em;
+  font-weight: 700;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 30;
+  transition: opacity 200ms ease, transform 200ms cubic-bezier(0.2, 1.6, 0.45, 1);
+}
+.bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -9px; left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--ink);
+}
+.bubble.show { opacity: 1; transform: translateX(-50%) scale(1); }
+
+/* ---------- Camp at night / in storms ---------- */
+#screen-camp.night #beach-sky { background: linear-gradient(180deg, var(--indigo) 0%, var(--violet) 55%, var(--violet-soft) 100%); }
+#screen-camp.night #beach-sun { opacity: 0; transform: translateY(24px); }
+#screen-camp.night #beach-moon { opacity: 1; }
+#screen-camp.night #beach-sea { filter: brightness(0.45) saturate(0.6); }
+#screen-camp.night #beach-sand { filter: brightness(0.5) saturate(0.55) hue-rotate(-18deg); }
+#screen-camp.night .palm { filter: brightness(0.45); }
+#screen-camp.night .bfig { filter: brightness(0.72) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5)); }
+#screen-camp.night .flame { transform: translateX(-50%) scale(1.7); }
+#screen-camp.stormy #beach-sky { filter: saturate(0.35) brightness(0.75); }
+#screen-camp.stormy #beach-sea { filter: saturate(0.5) brightness(0.8); }
+#screen-camp.stormy #beach-sun { opacity: 0.25; }
+
+/* ---------- Camp log (feed) ---------- */
+#feed {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 8px 12px 10px;
+  display: flex; flex-direction: column; gap: 6px;
+  scrollbar-width: thin;
+}
+.feed-item {
+  font-size: 0.85em;
+  line-height: 1.35;
+  padding: 6px 10px;
+  background: var(--paper-dim);
+  border-left: 4px solid rgba(29, 27, 22, 0.35);
+  border-radius: 0 6px 6px 0;
+  animation: feed-in 240ms ease-out;
+}
+.feed-item.drama { border-left-color: var(--warn); background: #F3E7C4; }
+.feed-item.danger { border-left-color: var(--bad); background: #F0D6CF; }
+.feed-item.good { border-left-color: var(--good); background: #D8E8DC; }
+.feed-item .feed-day {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.78em;
+  letter-spacing: 0.5px;
+  opacity: 0.5;
+  margin-right: 6px;
+}
+/* Player-related entries: YOU chyron + heavier accent bar */
+.feed-item.me { border-left-width: 7px; }
+.feed-you {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.72em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 1px 8px 1px 5px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+  margin-right: 6px;
+}
+#feed.only-me .feed-item:not(.me) { display: none; }
+@keyframes feed-in {
+  from { opacity: 0; transform: translateX(10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ---------- Camp Log: minimized to a single line ----------
+   Collapsed, the log leaves the flex row entirely and floats over the top-right
+   of the beach, so the diorama gets the full width. The bar shows the newest
+   entry and flickers while something is unread — brighter and faster when that
+   entry involves the player, which is what they actually need to address. */
+#camp-main { position: relative; }
+#feed-ticker { display: none; }
+#camp-main.log-min #camp-side {
+  position: absolute;
+  top: 6px; right: 12px; left: auto; bottom: auto;
+  width: 46%; max-width: 560px;
+  flex: 0 0 auto;
+  padding: 0;
+  z-index: 26;
+}
+#camp-main.log-min #log-panel { flex: 0 0 auto; }
+#camp-main.log-min #log-head,
+#camp-main.log-min #feed { display: none; }
+#camp-main.log-min #feed-ticker { display: flex; }
+
+#feed-ticker {
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-big);
+  font-family: var(--font-body);
+  font-size: 0.82em;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-height: 38px;
+}
+#feed-ticker .ft-tag {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.82em;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 2px 9px 2px 7px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+#feed-ticker .ft-text {
+  flex: 1; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#feed-ticker .ft-count {
+  flex: 0 0 auto;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.8em;
+  background: var(--bad);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+#feed-ticker .ft-caret { flex: 0 0 auto; font-size: 0.6em; opacity: 0.55; }
+.night-bg #feed-ticker .ft-tag,
+#screen-camp.night #feed-ticker .ft-tag { background: var(--ember); color: var(--indigo); }
+
+/* Flicker: something happened the player has not seen. */
+#camp-main.log-min #log-panel.unread { animation: log-flicker 1.5s ease-in-out infinite; }
+#camp-main.log-min #log-panel.unread.urgent { animation: log-flicker-urgent 0.78s ease-in-out infinite; }
+@keyframes log-flicker {
+  0%, 100% { background: var(--paper); box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45); }
+  50% { background: #FFF3D0; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 3px var(--warn); }
+}
+@keyframes log-flicker-urgent {
+  0%, 100% { background: var(--paper); box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45); }
+  50% { background: #F7DED5; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 4px var(--bad); }
+}
+/* Same signal without motion, for players who ask for reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) #camp-main.log-min #log-panel.unread { animation: none; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 3px var(--warn); }
+  html:not(.motion-full) #camp-main.log-min #log-panel.unread.urgent { animation: none; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 4px var(--bad); }
+}
+html.motion-off #camp-main.log-min #log-panel.unread { animation: none; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 3px var(--warn); }
+html.motion-off #camp-main.log-min #log-panel.unread.urgent { animation: none; box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45), 0 0 0 4px var(--bad); }
+
+/* Design-log dump: monospace so the aligned columns line up when pasted out. */
+.dbg-dump {
+  width: 100%;
+  min-height: 34vh;
+  max-height: 46vh;
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 10px;
+  line-height: 1.35;
+  white-space: pre;
+  overflow: auto;
+  background: var(--paper-dim);
+  color: var(--ink);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius);
+  padding: 8px;
+  resize: vertical;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+/* ---------- Action bar ---------- */
+#action-bar {
+  display: flex; gap: 8px;
+  padding: 8px 12px calc(8px + var(--safe-b) * 0.4);
+  flex: 0 0 auto;
+  overflow-x: auto;
+  scrollbar-width: none;
+  z-index: 24;
+}
+#action-bar::-webkit-scrollbar { display: none; }
+#action-bar .btn { flex: 0 0 auto; }
+
+/* ---------- Dialogue ---------- */
+#dialogue-layer {
+  position: absolute; inset: 0; z-index: 40;
+  display: none;
+  background: rgba(29, 27, 22, 0.45);
+}
+#dialogue-layer.open { display: flex; }
+#dialogue-box {
+  margin: auto auto 12px;
+  width: min(94%, 900px);
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+  max-height: calc(100% - 20px);
+  min-height: 0;
+}
+#dlg-portrait {
+  flex: 0 0 auto;
+  /* vmin, not vh: the app renders rotated in portrait, where vh is the wrong axis. */
+  width: clamp(72px, 16vmin, 130px);
+  filter: drop-shadow(0 4px 3px rgba(0, 0, 0, 0.35));
+}
+#dlg-portrait img { width: 100%; height: auto; }
+#dlg-content {
+  flex: 1; min-width: 0; min-height: 0;
+  padding: 12px 16px;
+  /* vmin tracks the app's VISUAL height in both orientations (landscape: vh;
+     rotated portrait: vw), unlike vh which is the wrong axis when rotated. */
+  max-height: min(300px, 68vmin);
+  display: flex; flex-direction: column;
+  overflow: hidden;                 /* the panel itself never scrolls */
+}
+#dlg-speaker {
+  display: inline-block;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 2px 14px 2px 8px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  margin-bottom: 6px;
+}
+#dlg-speaker { flex: 0 0 auto; }
+/* What they just said stays pinned at the top, always readable. */
+#dlg-text {
+  flex: 0 0 auto;
+  line-height: 1.45; font-size: 0.95em;
+  min-height: 2.5em;
+  max-height: 7.2em;                /* a very long answer gets its own scroll */
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+/* The choices are the smaller window underneath, and the only thing that scrolls. */
+#dlg-choices {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 8px;
+  padding: 6px;
+  background: rgba(29, 27, 22, 0.06);
+  border: 2px solid rgba(29, 27, 22, 0.20);
+  border-radius: var(--radius);
+}
+.night-bg #dlg-choices,
+#screen-camp.night #dlg-choices {
+  background: rgba(232, 219, 168, 0.07);
+  border-color: rgba(232, 219, 168, 0.28);
+}
+#dlg-choices .btn {
+  justify-content: flex-start;
+  text-align: left;
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 700;
+  font-size: 0.9em;
+  min-height: 42px;
+}
+
+/* ---------- Tribal council ---------- */
+#tribal-fire { position: relative; width: 90px; height: 96px; margin: 0 auto; }
+#tribal-fire .flame { width: 42px; height: 58px; bottom: 26px; }
+#tribal-fire .flame.f2 { width: 26px; height: 38px; }
+.torch-base {
+  position: absolute; bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 14px; height: 34px;
+  background: #6B4A2E;
+  border: 2px solid var(--indigo);
+  border-radius: 4px;
+}
+
+.vote-parchment {
+  font-family: var(--font-ritual);
+  font-style: italic;
+  font-size: 1.5em;
+  color: var(--ink);
+  background: var(--cream);
+  border: 2px solid var(--sand-deep);
+  border-radius: 4px;
+  padding: 16px 30px;
+  transform: rotate(-1.5deg);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.5);
+  animation: parchment-in 420ms cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+@keyframes parchment-in {
+  from { opacity: 0; transform: rotate(-6deg) scale(0.7) translateY(18px); }
+  to { opacity: 1; transform: rotate(-1.5deg) scale(1) translateY(0); }
+}
+
+/* ---------- Cast grids ---------- */
+.cast-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+}
+.cast-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius-big);
+  box-shadow: 3px 3px 0 rgba(29, 27, 22, 0.4);
+  cursor: pointer;
+  transition: transform 90ms ease;
+}
+.cast-card:active { transform: scale(0.97); }
+.cast-card.selected { background: var(--sand); outline: 3px solid var(--ember); }
+.cast-card .portrait {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  border: var(--outline) solid var(--ink);
+  overflow: hidden;
+  background: var(--ocean);
+  position: relative;
+}
+.cast-card .portrait img {
+  width: 190%; height: auto;
+  position: absolute; top: -4%; left: 50%;
+  transform: translateX(-50%);
+}
+.cast-card .cc-name { font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; font-size: 0.82em; text-align: center; }
+.cast-card .cc-sub { font-size: 0.68em; opacity: 0.65; text-align: center; }
+.night-bg .cast-card { background: var(--violet-soft); border-color: var(--ember); color: var(--cream); }
+.night-bg .cast-card.selected { background: var(--ember); color: var(--indigo); }
+
+/* ---- immunity, on every card ----
+   Two separate things, deliberately:
+
+     .has-immunity   draws the stamp. Applied by castCard, so it appears on the
+                     bonds menu and in every name picker as well as the ballot —
+                     immunity is the most important fact about somebody on the day
+                     they hold it, and it was only visible at tribal.
+     .immune-card    dims and disables. Ballot only, because there it is a rule;
+                     everywhere else it is information you are reading, and a
+                     greyed-out card in the bonds menu would just look broken. */
+.cast-card.has-immunity { position: relative; }
+.cast-card.immune-card {
+  opacity: 0.5;
+  filter: saturate(0.35);
+  cursor: default;
+  box-shadow: none;
+}
+.cast-card.immune-card:active { transform: none; }
+.cc-immune {
+  /* Across the PORTRAIT, not the middle of the card. Centred, the stamp sat on top
+     of the name — and the one thing the player most needs off this card is which
+     castaway it is. */
+  position: absolute; left: 50%; top: 32%;
+  transform: translate(-50%, -50%) rotate(-9deg);
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.62em; letter-spacing: 1.5px;
+  padding: 2px 6px; white-space: nowrap;
+  background: var(--good); color: var(--paper);
+  border: 2px solid var(--ink); border-radius: 3px;
+  pointer-events: none;
+}
+
+/* Meters */
+.meter {
+  width: 100%; height: 10px;
+  background: rgba(29, 27, 22, 0.15);
+  border: 2px solid var(--ink);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.meter > i { display: block; height: 100%; background: var(--good); transition: width 400ms ease; }
+.meter.trust > i { background: var(--ocean-deep); }
+.meter.low > i { background: var(--bad); }
+
+/* Mini bond/trust bars inside cast cards */
+.cast-card .cc-bars { width: 100%; display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+.cc-bar-row { display: flex; align-items: center; gap: 5px; }
+.cc-bar-label {
+  font-size: 0.58em; font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px;
+  opacity: 0.7; flex: 0 0 32px; text-align: right;
+}
+.cc-bar-row .meter { flex: 1; height: 8px; border-width: 2px; }
+.cast-card .cc-sub.ally { color: var(--ember); opacity: 1; font-weight: 800; letter-spacing: 0.5px; }
+.night-bg .cast-card .cc-sub.ally { color: var(--ember-hot); }
+/* What they told you they'd do — worth standing out on the vote screen. */
+.cast-card .cc-sub.intel { color: var(--ember-hot); opacity: 1; font-weight: 700; }
+/* Backed by real intel vs. would-be bluff, so lying is always a choice. */
+.cast-card .cc-sub.invented { color: var(--bad); opacity: 0.95; font-style: italic; }
+.night-bg .cast-card .cc-sub.invented { color: #F0A090; }
+
+/* Tribal roster: auto-fill leaves empty tracks, which pinned the cast to the
+   left on any night with fewer castaways than columns. Cap the track width and
+   centre both axes so the circle of faces sits in the middle of the fire. */
+/* The vote screen has ~330px of height on a phone in landscape. The torch was
+   taking 96px of that (29%) which, once the bond bars made cards taller, pushed
+   the roster into a clipped scroll. Give the decoration less and the cast more. */
+#screen-tribal #tribal-fire { width: 62px; height: 56px; }
+#screen-tribal #tribal-fire .flame { width: 30px; height: 34px; bottom: 16px; }
+#screen-tribal #tribal-fire .flame.f2 { width: 18px; height: 22px; }
+#screen-tribal .torch-base { height: 22px; width: 11px; }
+#screen-tribal .peff-line { font-size: 0.95em; line-height: 1.3; }
+
+#tribal-grid {
+  grid-template-columns: repeat(auto-fit, minmax(78px, 96px));
+  justify-content: center;
+  justify-items: center;
+  /* `safe` keeps a tall roster from centring itself off the top of the box,
+     which clipped the portraits once the bond bars made cards taller. */
+  align-content: center;
+  align-content: safe center;
+  width: 100%;
+  max-width: 860px;
+  margin: 0 auto;
+  gap: 8px;
+  padding: 6px 10px;
+  overflow-y: auto;
+}
+/* Compact cards for the vote screen: the whole tribe has to fit on one phone
+   screen alongside the fire, the read-out and the confirm button. */
+#tribal-grid .cast-card { padding: 4px 3px; gap: 1px; border-width: 2px; }
+#tribal-grid .cast-card .portrait { width: 40px; height: 40px; border-width: 2px; }
+#tribal-grid .cast-card .cc-name { font-size: 0.7em; }
+#tribal-grid .cast-card .cc-sub { font-size: 0.55em; line-height: 1.1; }
+#tribal-grid .cast-card .cc-bars { gap: 2px; margin-top: 1px; }
+#tribal-grid .cc-bar-row { gap: 3px; }
+#tribal-grid .cc-bar-row .meter { height: 5px; border-width: 1px; }
+#tribal-grid .cc-bar-label { font-size: 0.5em; flex: 0 0 24px; }
+/* Dense: the merged-era roster. Occupation goes (it is flavour), the intel line
+   stays (it is information), and everything tightens. */
+#tribal-grid.dense { grid-template-columns: repeat(auto-fit, minmax(66px, 82px)); gap: 6px; }
+#tribal-grid.dense .cast-card .portrait { width: 32px; height: 32px; }
+#tribal-grid.dense .cast-card .cc-name { font-size: 0.62em; }
+#tribal-grid.dense .cast-card .cc-sub:not(.intel) { display: none; }
+#tribal-grid.dense .cast-card .cc-sub.intel { font-size: 0.5em; }
+#tribal-grid.dense .cc-bar-row .meter { height: 4px; }
+#tribal-grid.dense .cc-bar-label { font-size: 0.46em; flex: 0 0 20px; }
+#tribal-grid.dense .cast-card { padding: 3px 2px; gap: 0; }
+#tribal-grid.dense .cast-card .cc-name { line-height: 1.05; }
+#tribal-grid.dense .cc-bars { gap: 1px; margin-top: 0; }
+/* Give the big roster the decoration's remaining height too. */
+#screen-tribal.dense-roster #tribal-fire { width: 46px; height: 38px; }
+#screen-tribal.dense-roster #tribal-fire .flame { width: 22px; height: 24px; bottom: 12px; }
+#screen-tribal.dense-roster #tribal-fire .flame.f2 { width: 13px; height: 15px; }
+#screen-tribal.dense-roster .torch-base { height: 15px; width: 9px; }
+#screen-tribal.dense-roster .peff-line { font-size: 0.85em; }
+/* Meters need more contrast against the ritual-night palette. */
+.night-bg .meter { background: rgba(232, 219, 168, 0.18); border-color: var(--cream); }
+.night-bg .cc-bar-label { opacity: 0.85; }
+
+/* Beach figure spotlight (located via the Bonds menu) */
+.bfig.spotlight { animation: spotlight-pulse 460ms ease 4 alternate; }
+.bfig.spotlight .btag { background: var(--ember); color: var(--indigo); }
+@keyframes spotlight-pulse {
+  from { filter: none; }
+  to { filter: drop-shadow(0 0 12px var(--ember-hot)) brightness(1.18); }
+}
+
+/* ---------- Creation ---------- */
+#create-body {
+  flex: 1; display: flex; gap: 14px;
+  padding: 10px 16px calc(10px + var(--safe-b) * 0.4);
+  min-height: 0;
+}
+.create-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.create-col.preview { flex: 0 0 30%; align-items: center; justify-content: flex-end; min-height: 0; }
+.create-col.controls { flex: 1; overflow-y: auto; padding: 14px 16px; }
+#create-preview-img {
+  /* Sized by the flex column, not vh — vh measures the wrong axis
+     inside the rotated-portrait app and blew the avatar up ~2x. */
+  flex: 0 1 auto; min-height: 0;
+  max-height: 320px; width: auto; max-width: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 4px rgba(29, 27, 22, 0.3));
+}
+.opt-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.opt-row .lbl {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  flex: 0 0 84px;
+  font-size: 0.88em;
+}
+.seg {
+  display: inline-flex;
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0 3px 0 var(--ink);
+}
+.seg button {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85em;
+  border: none; background: transparent;
+  padding: 9px 13px;
+  min-height: 42px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.seg button + button { border-left: 2px solid var(--ink); }
+.seg button.on { background: var(--palm); color: var(--paper); }
+
+input[type="text"] {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 1em;
+  color: var(--ink);
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: inset 0 2px 0 rgba(29, 27, 22, 0.12);
+  padding: 10px 14px;
+  min-height: 44px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.stat-row { display: flex; align-items: center; gap: 10px; }
+.stat-row .lbl { flex: 0 0 110px; font-family: var(--font-display); font-weight: 700; text-transform: uppercase; letter-spacing: 0.4px; font-size: 0.82em; }
+
+/* ---------- Modal ---------- */
+.modal-veil {
+  position: absolute; inset: 0; z-index: 60;
+  display: none;
+  background: rgba(10, 5, 16, 0.55);
+  align-items: center; justify-content: center;
+  padding: 18px;
+}
+.modal-veil.open { display: flex; }
+.modal { width: min(94%, 640px); max-height: 88%; display: flex; flex-direction: column; overflow: hidden; }
+.modal .modal-head {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-size: 1.05em;
+  padding: 12px 16px 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.modal .modal-head .spacer { flex: 1; }
+.modal .modal-body { padding: 4px 16px 14px; overflow-y: auto; }
+
+/* ---------- Toast ---------- */
+#toast-wrap {
+  position: absolute; top: calc(10px + var(--safe-t)); left: 50%;
+  transform: translateX(-50%);
+  z-index: 80;
+  display: flex; flex-direction: column; gap: 6px;
+  align-items: center;
+  pointer-events: none;
+}
+.toast {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 0.88em;
+  background: var(--ink);
+  color: var(--paper);
+  padding: 7px 20px 7px 14px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  animation: toast-in 200ms ease-out, toast-out 300ms ease-in 2.4s forwards;
+}
+@keyframes toast-in { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes toast-out { to { opacity: 0; transform: translateY(-8px); } }
+
+/* ---------- Peff ---------- */
+.peff-line {
+  font-family: var(--font-ritual);
+  font-style: italic;
+  font-size: 1.12em;
+  line-height: 1.5;
+  color: var(--cream);
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto;
+}
+.peff-tag {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 0.72em;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--ember);
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* ---------- Title beach (island backdrop, no characters) ---------- */
+#title-beach { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+#title-beach .palm { top: auto; bottom: 34%; }
+#title-beach .palm.tp1 { left: 5%; }
+#title-beach .palm.tp2 { right: 6%; transform: scale(0.85) scaleX(-1); }
+
+/* Same corner the camp HUD keeps Menu in, so it is already where the thumb
+   expects it. Above the centred column, which claims z-index 12. */
+#btn-title-menu { position: absolute; top: 10px; right: 12px; z-index: 14; }
+
+/* ---------- Tutorial coach marks ---------- */
+.tut-veil { position: fixed; inset: 0; z-index: 90; background: rgba(10, 5, 16, 0.62); }
+.tut-ring {
+  position: fixed; z-index: 91;
+  border: 3px dashed var(--ember);
+  border-radius: 10px;
+  box-shadow: 0 0 0 6px rgba(232, 135, 58, 0.25), 0 0 24px rgba(232, 135, 58, 0.35);
+  pointer-events: none;
+  animation: tut-pulse 1.2s ease-in-out infinite;
+}
+@keyframes tut-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.02); } }
+.tut-card {
+  position: fixed; z-index: 92;
+  left: 50%; transform: translateX(-50%);
+  width: min(92%, 480px);
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius-big);
+  box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.5);
+  padding: 14px 18px;
+  color: var(--ink);
+}
+.tut-card h3 { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.tut-card p { font-size: 0.92em; line-height: 1.45; }
+.tut-card .row { margin-top: 10px; justify-content: flex-end; gap: 10px; }
+.tut-dots { font-family: var(--font-display); font-weight: 700; font-size: 0.8em; opacity: 0.55; margin-right: auto; }
+
+/* ---------- Objective banner (progressive onboarding) ---------- */
+#objective-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 14px 6px;
+  z-index: 25;
+}
+#objective-bar .obj-tag {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.78em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--warn);
+  color: var(--ink);
+  padding: 3px 12px 3px 8px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 8px) 100%, 0 100%);
+  flex: 0 0 auto;
+}
+#objective-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.88em;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+#objective-bar.flash .obj-tag { background: var(--good); color: var(--paper); }
+
+/* ---------- Approach prompt (an NPC wants a word) ---------- */
+.approach-bar {
+  position: absolute;
+  left: 50%; bottom: 78px;
+  transform: translateX(-50%);
+  z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--paper);
+  border: var(--outline) solid var(--ink);
+  border-radius: var(--radius);
+  box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.5);
+  padding: 8px 12px;
+  white-space: nowrap;
+  animation: approach-in 260ms ease-out;
+}
+.approach-bar .ap-tag {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--ember);
+  color: var(--indigo);
+  padding: 2px 10px 2px 7px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 6px) 100%, 0 100%);
+}
+.approach-bar .ap-text {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.9em;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+@keyframes approach-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* Pulsing nudge on the button the current objective points at */
+.btn.tut-pulse { animation: tut-glow 1.2s ease-in-out infinite; }
+@keyframes tut-glow {
+  0%, 100% { outline: 3px solid transparent; outline-offset: 2px; }
+  50% { outline: 3px solid var(--warn); outline-offset: 2px; }
+}
+
+/* ---------- Utility ---------- */
+.row { display: flex; align-items: center; gap: 8px; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.center { align-items: center; justify-content: center; }
+.grow { flex: 1; min-height: 0; min-width: 0; }
+.scroll-y { overflow-y: auto; }
+.hidden { display: none !important; }
+.dim { opacity: 0.6; }
+.tiny { font-size: 0.75em; }
+
+/* ============================================================
+   SCROLLABLE ISLAND — 14 zones, Unity scene order
+   ============================================================ */
+#camp-scene { overflow-x: auto; overflow-y: hidden; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+#camp-scene::-webkit-scrollbar { display: none; }
+#world { position: relative; display: flex; width: 1400%; height: 100%; }
+#figures { position: absolute; inset: 0; z-index: 15; pointer-events: none; }
+#figures .bfig { pointer-events: auto; }
+/* Tap target for "walk there": above the scenery, below the cast (z 14-18),
+   so tapping a castaway still opens dialogue instead of walking past them. */
+.tap-layer { position: absolute; inset: 0; z-index: 13; cursor: pointer; }
+.tap-ping {
+  position: absolute; bottom: 5%;
+  width: 26px; height: 12px;
+  margin-left: -13px;
+  border: 3px solid var(--cream);
+  border-radius: 50%;
+  z-index: 14;
+  pointer-events: none;
+  animation: tap-ping 600ms ease-out forwards;
+}
+@keyframes tap-ping {
+  0% { transform: scale(0.4); opacity: 0.95; }
+  100% { transform: scale(1.5); opacity: 0; }
+}
+.biome { position: relative; flex: 1 1 0; }
+
+.b-sky {
+  position: absolute; inset: 0 0 44% 0;
+  background: linear-gradient(180deg, var(--sky-deep) 0%, var(--sky) 60%, var(--sky-high) 100%);
+  transition: background 1200ms ease, filter 1200ms ease;
+}
+.b-sun {
+  position: absolute; top: 10%; right: 10%;
+  width: 54px; height: 54px; border-radius: 50%;
+  background: #F7D774;
+  border: var(--outline) solid var(--ink);
+  box-shadow: 0 0 0 9px rgba(247, 215, 116, 0.22);
+  transition: opacity 1200ms ease;
+}
+.b-moon {
+  position: absolute; top: 9%; right: 13%;
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--cream);
+  box-shadow: inset -11px -5px 0 rgba(36, 22, 56, 0.55), 0 0 20px rgba(232, 219, 168, 0.3);
+  opacity: 0;
+  transition: opacity 1200ms ease;
+}
+/* Two horizon lines shared by every zone — the ink outlines run
+   unbroken across the whole island:
+     distant band (sea or hazy ridge)  44% – 61%
+     ground (sand/grass/stone/water)   61% – 100% */
+.b-sea {
+  position: absolute; left: 0; right: 0; top: 44%; height: 17%;
+  background: linear-gradient(180deg, var(--ocean-deep), var(--ocean));
+  border-top: var(--outline) solid var(--ink);
+  overflow: hidden;
+  transition: filter 1200ms ease;
+}
+.b-ridge {
+  position: absolute; left: 0; right: 0; top: 44%; height: 17%;
+  border-top: var(--outline) solid var(--ink);
+  overflow: hidden;
+  transition: filter 1200ms ease;
+}
+.bd-sea { background: linear-gradient(180deg, var(--ocean-deep), var(--ocean)); }
+.bd-ridge { background: linear-gradient(180deg, #7FB08A, #9CC79B); }
+.bd-ridge-deep { background: linear-gradient(180deg, #5E9873, #7FB08A); }
+.bd-ridge-grey { background: linear-gradient(180deg, #98A0A0, #B3B9B3); }
+
+.b-ground {
+  position: absolute; left: 0; right: 0; top: 61%; bottom: 0;
+  border-top: var(--outline) solid var(--ink);
+  transition: filter 1200ms ease;
+}
+.g-sand { background: linear-gradient(180deg, var(--sand), var(--sand-deep)); }
+.g-grass { background: linear-gradient(180deg, #79B267, #4A8F5F); }
+.g-grass-deep { background: linear-gradient(180deg, #4E8A48, #2E5F3C); }
+.g-grass-light { background: linear-gradient(180deg, #93C77B, #5FA468); }
+.g-stone { background: linear-gradient(180deg, #9A93A0, #6F6878); }
+.g-stone-light { background: linear-gradient(180deg, #AAA49F, #7E7873); }
+.g-deepsea { background: linear-gradient(180deg, var(--ocean), #4E9DB4); }
+.b-ground.g-deepsea { border-top-color: transparent; }  /* open water — no shoreline line mid-ocean */
+
+/* Seam tongues: the previous biome's material fingers into this zone
+   with a jagged flat-color wedge, so no biome edge is a vertical cliff. */
+.g-edge, .bd-edge {
+  position: absolute; top: 0; bottom: 0; left: 0;
+  width: clamp(46px, 9%, 92px);
+  clip-path: polygon(0 0, 88% 0, 100% 10%, 66% 24%, 94% 38%, 62% 52%, 96% 66%, 64% 80%, 90% 92%, 70% 100%, 0 100%);
+  pointer-events: none;
+}
+.b-label {
+  position: absolute; bottom: 8px; left: 10px; z-index: 22;
+  font-family: var(--font-display);
+  font-weight: 700; font-size: 0.72em;
+  text-transform: uppercase; letter-spacing: 1px;
+  background: rgba(29, 27, 22, 0.82); color: var(--paper);
+  padding: 2px 12px 2px 8px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+
+.biome .palm { top: auto; bottom: 32%; }
+.tree { position: absolute; bottom: 36%; width: 78px; height: 116px; pointer-events: none; z-index: 7; }
+.tree .canopy {
+  position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 80px; height: 66px;
+  background: var(--palm);
+  border: var(--outline) solid var(--ink);
+  border-radius: 48% 52% 46% 54%;
+}
+.tree.deep .canopy { background: var(--palm-deep); }
+.tree .bole {
+  position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 12px; height: 56px;
+  background: #8A5A38;
+  border: var(--outline) solid var(--ink);
+  border-radius: 6px;
+}
+
+.furn { position: absolute; z-index: 8; pointer-events: none; }
+.firepit-f { bottom: 10%; left: 44%; width: 54px; height: 66px; }
+.firepit-f .flame { bottom: 14px; width: 30px; height: 44px; }
+.firepit-f .stones {
+  position: absolute; bottom: 0; left: -8px; right: -8px; height: 13px;
+  background: #8D8593; border: var(--outline) solid var(--ink); border-radius: 8px;
+}
+.firepit-f .log { position: absolute; bottom: 6px; width: 42px; height: 9px; background: #6B4A2E; border: 2px solid var(--ink); border-radius: 4px; }
+.firepit-f .log.l1 { transform: rotate(18deg); left: 2px; }
+.firepit-f .log.l2 { transform: rotate(-16deg); left: 8px; }
+.shelter-f { bottom: 12%; left: 30%; width: 170px; height: 96px; }
+.shelter-f .roof {
+  position: absolute; top: 0; left: 0; width: 170px; height: 54px;
+  background: #B98A54; border: var(--outline) solid var(--ink);
+  border-radius: 6px; transform: skewY(-7deg);
+}
+.shelter-f .post { position: absolute; bottom: 0; width: 12px; height: 54px; background: #6B4A2E; border: var(--outline) solid var(--ink); border-radius: 4px; }
+.shelter-f .post.p1 { left: 10px; }
+.shelter-f .post.p2 { right: 10px; }
+.well-f { bottom: 12%; left: 40%; width: 96px; height: 104px; }
+.well-f .ring { position: absolute; bottom: 0; left: 0; width: 96px; height: 38px; background: #8D8593; border: var(--outline) solid var(--ink); border-radius: 10px; }
+.well-f .post { position: absolute; bottom: 20px; width: 10px; height: 84px; background: #6B4A2E; border: var(--outline) solid var(--ink); border-radius: 4px; }
+.well-f .post.p1 { left: 4px; }
+.well-f .post.p2 { right: 4px; }
+.well-f .beam { position: absolute; top: 0; left: 0; width: 96px; height: 11px; background: #6B4A2E; border: var(--outline) solid var(--ink); border-radius: 4px; }
+.crates-f { bottom: 12%; right: 10%; width: 110px; height: 62px; }
+.crates-f .crate { position: absolute; bottom: 0; background: #B98A54; border: var(--outline) solid var(--ink); border-radius: 4px; }
+.crates-f .crate.c1 { left: 0; width: 54px; height: 44px; }
+.crates-f .crate.c2 { left: 46px; width: 42px; height: 58px; }
+.rocks-f { bottom: 8%; left: 16%; width: 66%; height: 84px; }
+.rocks-f .boulder { position: absolute; bottom: 0; background: #8D8593; border: var(--outline) solid var(--ink); border-radius: 46% 54% 40% 42%; }
+.rocks-f .boulder.b1 { left: 0; width: 92px; height: 64px; }
+.rocks-f .boulder.b2 { left: 42%; width: 60px; height: 44px; background: #7E7873; }
+.rocks-f .boulder.b3 { right: 0; width: 112px; height: 76px; }
+.treemail-f { bottom: 14%; left: 44%; width: 62px; height: 112px; }
+.treemail-f .post { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 12px; height: 92px; background: #6B4A2E; border: var(--outline) solid var(--ink); border-radius: 4px; }
+.treemail-f .box { position: absolute; top: 0; left: 0; width: 62px; height: 38px; background: #C94F3D; border: var(--outline) solid var(--ink); border-radius: 6px; }
+
+/* Night / storm across the island */
+#screen-camp.night .b-sky { background: linear-gradient(180deg, var(--indigo) 0%, var(--violet) 55%, var(--violet-soft) 100%); }
+#screen-camp.night .b-sun { opacity: 0; }
+#screen-camp.night .b-moon { opacity: 1; }
+#screen-camp.night .b-sea { filter: brightness(0.45) saturate(0.6); }
+#screen-camp.night .b-ground, #screen-camp.night .b-ridge { filter: brightness(0.5) saturate(0.55); }
+#screen-camp.night .palm, #screen-camp.night .tree { filter: brightness(0.45); }
+#screen-camp.night .bfig { filter: brightness(0.72) drop-shadow(0 3px 2px rgba(0, 0, 0, 0.5)); }
+#screen-camp.night .furn { filter: brightness(0.6); }
+#screen-camp.night .firepit-f .flame { transform: translateX(-50%) scale(1.6); filter: none; }
+#screen-camp.stormy .b-sky { filter: saturate(0.35) brightness(0.72); }
+#screen-camp.stormy .b-sea, #screen-camp.stormy .b-ridge, #screen-camp.stormy .b-ground.g-deepsea { filter: saturate(0.5) brightness(0.8); }
+#screen-camp.stormy .b-sun { opacity: 0.25; }
+
+/* ============================================================
+   MAROONING — the season opener wide shot
+   ============================================================ */
+#maroon-stage { position: absolute; inset: 0 0 45% 0; overflow: hidden; transition: inset 260ms ease; }
+/* While the player is choosing, hand the panel more room to read ten options in;
+   the wide shot stays visible above it. */
+#screen-maroon.choosing #maroon-stage { inset: 0 0 66% 0; }
+#screen-maroon.choosing #maroon-panel { height: 65%; }
+#maroon-line {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: clamp(10px, 4vmin, 44px);
+  padding: 0 12px 10px;
+  z-index: 12;
+}
+.maroon-tribe { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.maroon-tribe-tag {
+  font-family: var(--font-display); font-weight: 800; font-size: 0.72em;
+  letter-spacing: 1.4px; text-transform: uppercase;
+  padding: 2px 12px 2px 8px; color: var(--paper);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 7px) 100%, 0 100%);
+}
+.maroon-tribe.tidal .maroon-tribe-tag { background: var(--ocean-deep); }
+.maroon-tribe.ember .maroon-tribe-tag { background: var(--ember); color: var(--indigo); }
+.maroon-row { display: flex; align-items: flex-end; gap: 1px; }
+.mfig {
+  position: relative;
+  display: flex; flex-direction: column; align-items: center;
+  filter: drop-shadow(0 3px 2px rgba(29, 27, 22, 0.32));
+  transition: transform 220ms ease, filter 220ms ease;
+}
+/* Whoever Peff is questioning steps forward. */
+.mfig.speaking { transform: translateY(-6%) scale(1.14); z-index: 20; filter: drop-shadow(0 0 10px var(--ember-hot)); }
+.mfig:not(.speaking) { filter: drop-shadow(0 3px 2px rgba(29, 27, 22, 0.32)) brightness(0.86) saturate(0.85); }
+.mfig .mtag {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.5em;
+  letter-spacing: 0.3px; text-transform: uppercase;
+  background: var(--ink); color: var(--paper);
+  padding: 1px 4px; border-radius: 2px; margin-top: 1px;
+  max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mfig.player .mtag { background: var(--sand); color: var(--ink); }
+.mfig.speaking .mtag { background: var(--ember); color: var(--indigo); max-width: none; }
+
+#maroon-panel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 43%;
+  transition: height 260ms ease;
+  margin: 0 8px 8px;
+  padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 5px;
+  min-height: 0;
+  z-index: 30;
+}
+#maroon-panel .peff-line { flex: 0 0 auto; font-size: 0.95em; line-height: 1.25; }
+/* The transcript takes the room; the choices take what they need underneath it.
+   When there is nothing to choose the transcript has the whole panel. */
+#maroon-convo { flex: 1 1 auto; }
+#maroon-choices {
+  flex: 0 1 auto; max-height: 62%; min-height: 0; overflow-y: auto; scrollbar-width: thin;
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 4px;
+  background: rgba(29, 27, 22, 0.06);
+  border: 2px solid rgba(29, 27, 22, 0.18);
+  border-radius: var(--radius);
+}
+#maroon-choices:empty { display: none; }
+.maroon-opt { display: flex; flex-direction: column; }
+.maroon-opt .btn {
+  justify-content: flex-start; text-align: left;
+  font-family: var(--font-body); text-transform: none; letter-spacing: 0;
+  font-weight: 700; font-size: 0.82em; min-height: 34px; padding: 5px 10px;
+}
+/* The player's own read on what an answer signals. */
+.maroon-think {
+  display: none;
+  font-size: 0.72em; line-height: 1.25; font-style: italic;
+  color: var(--ink); opacity: 0.85;
+  background: var(--paper-dim);
+  border-left: 3px solid var(--ocean-deep);
+  border-radius: 0 6px 6px 0;
+  padding: 3px 8px; margin: 2px 0 3px 14px;
+}
+.maroon-think::before { content: '“thinking” — '; font-style: normal; opacity: 0.55; }
+.maroon-opt.show .maroon-think { display: block; animation: feed-in 160ms ease-out; }
+
+/* Probe popup: who is asking, and how well you know them. */
+.probe-head { display: flex; gap: 10px; align-items: flex-start; }
+.probe-head .cast-card { flex: 0 0 auto; width: 104px; cursor: default; }
+.probe-head .cast-card:active { transform: none; }
+.probe-side { flex: 1; min-width: 0; gap: 5px; }
+.probe-frame { font-size: 0.9em; line-height: 1.35; }
+.probe-frame.stranger { color: var(--bad); font-weight: 700; }
+.night-bg .probe-frame.stranger { color: #F0A090; }
+.probe-frame.ally { color: var(--good); font-weight: 700; }
+.night-bg .probe-frame.ally { color: #9BD3AA; }
+.probe-said {
+  font-size: 0.95em; line-height: 1.35; font-style: italic;
+  border-left: 4px solid var(--ocean-deep);
+  padding: 4px 10px; margin: 6px 0 2px;
+  background: var(--paper-dim);
+  border-radius: 0 6px 6px 0;
+}
+.night-bg .probe-said { background: rgba(232, 219, 168, 0.08); }
+
+/* ---------- Marooning: readability, dip from black, welcome card ---------- */
+/* .peff-line is cream for the night palette; on the paper panel it vanished. */
+#maroon-panel .peff-line { color: var(--ink); }
+#maroon-panel .peff-line .peff-tag { background: var(--ember); color: var(--indigo); }
+#maroon-convo .mc-text { color: var(--ink); }
+
+#maroon-dip {
+  position: absolute; inset: 0; z-index: 60;
+  background: #000; pointer-events: none; opacity: 1;
+}
+#maroon-dip.lift { animation: maroon-dip-lift 1500ms ease-out forwards; }
+@keyframes maroon-dip-lift { from { opacity: 1; } to { opacity: 0; } }
+
+/* The opening card is a multi-line stack now (kicker, title, subtitle, crowd) and
+   lives in css/tribes.css. The rule that used to be here styled it as ONE line of
+   text, and its text-shadow — which included a 5px/6px half-opacity offset — was
+   inherited by every child, so each line rendered with a ghost copy of itself
+   sitting under it. Anything that used to be here is deliberately gone; the card
+   sets its own type, and each line sets its own shadow. */
+
+#maroon-applause {
+  position: absolute; left: 0; right: 0; top: 30%;
+  z-index: 40; text-align: center;
+  font-family: var(--font-body); font-style: italic;
+  font-size: clamp(11px, 2.4vmin, 17px);
+  color: var(--cream);
+  text-shadow: 0 2px 0 rgba(29,27,22,0.8);
+  opacity: 0; pointer-events: none;
+}
+#maroon-applause.go { animation: maroon-clap 900ms ease-out 320ms forwards; }
+@keyframes maroon-clap {
+  0% { opacity: 0; transform: translateY(6px); }
+  30% { opacity: 1; transform: translateY(0) scale(1.04); }
+  100% { opacity: 0.92; transform: translateY(0) scale(1); }
+}
+.maroon-next { align-self: flex-start; }
+
+/* ---------- Dilemmas: the inbound moments ---------- */
+.dilemma-sit { font-size: 0.92em; line-height: 1.35; font-weight: 700; }
+.dilemma-warn {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.74em; letter-spacing: 0.8px; text-transform: uppercase;
+  color: var(--bad); margin: 4px 0 2px;
+}
+.night-bg .dilemma-warn { color: #F0A090; }
+/* ---- who the event is ABOUT ----
+   Reported problem: "when one player approaches me, I don't know who the other one
+   they are talking about is." A name in a sentence is not enough. Each third party
+   gets a face and the two numbers the decision actually turns on — how warm they
+   are on you and how much they trust you — so the player can weigh the claim
+   against the relationship instead of against a name they half-recognise.
+
+   Sized to fit three or four across a phone in landscape, because some events are
+   now three-handed and a column of full roster cards would not fit. */
+.dilemma-about-tag {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: 0.62em; text-transform: uppercase; letter-spacing: 1px;
+  opacity: 0.7; margin-top: 4px;
+}
+.dilemma-about { display: flex; gap: 5px; flex-wrap: wrap; }
+.dab {
+  flex: 1 1 0; min-width: 4.6em; max-width: 8em;
+  padding: 3px 4px 4px; border-radius: 4px;
+  background: rgba(29, 27, 22, 0.06);
+  border: 2px solid var(--ink);
+  border-top: 5px solid var(--t-color, var(--ink));
+}
+.dab-pic {
+  height: clamp(30px, 8vmin, 54px);
+  display: flex; align-items: flex-end; justify-content: center;
+  overflow: hidden;
+}
+.dab-pic img { height: 100%; width: auto; image-rendering: auto; }
+.dab-initial {
+  font-family: var(--font-display); font-weight: 800;
+  font-size: clamp(18px, 5vmin, 32px); opacity: 0.35;
+}
+.dab-name {
+  font-family: var(--font-display); font-weight: 800; font-size: 0.64em;
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.dab-meter { display: flex; align-items: center; gap: 3px; }
+.dab-lbl { font-size: 0.48em; opacity: 0.65; min-width: 2.1em; }
+.dab-bar {
+  flex: 1 1 auto; height: 6px;
+  background: rgba(29, 27, 22, 0.14);
+  border: 1px solid var(--ink); border-radius: 2px; overflow: hidden;
+}
+.dab-bar > i { display: block; height: 100%; }
+.dab-bar.rel > i { background: var(--sand-deep); }
+.dab-bar.trust > i { background: var(--ocean); }
+
+.dilemma-opts { gap: 4px; }
+.dilemma-opts .maroon-opt .btn {
+  justify-content: flex-start; text-align: left;
+  font-family: var(--font-body); text-transform: none; letter-spacing: 0;
+  font-weight: 700; font-size: 0.86em; min-height: 36px; padding: 6px 10px;
+}
+.dilemma-opts .maroon-think {
+  border-left-color: var(--bad);
+  margin-left: 12px;
+}
+.dilemma-opts .maroon-think::before { content: 'cost — '; font-style: normal; opacity: 0.6; }
+
+/* ============================================================
+   CAMP — the needs board, the morning after, and the work tags.
+   ============================================================ */
+.camp-head {
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.8px; font-size: 0.78em; opacity: 0.75; margin: 6px 0 -2px;
+}
+.needs-board {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 7px 9px; border: 2px solid var(--ink); border-radius: var(--radius);
+  background: rgba(29, 27, 22, 0.05);
+}
+.nb-row { display: flex; align-items: center; gap: 7px; }
+.nb-name { flex: 0 0 5.6em; font-size: 0.78em; font-weight: 700; }
+.nb-meter {
+  flex: 1; height: 9px; background: rgba(29, 27, 22, 0.14);
+  border: 2px solid var(--ink); border-radius: 3px; overflow: hidden;
+}
+.nb-meter > i { display: block; height: 100%; background: var(--good); transition: width 400ms ease; }
+.nb-row.bad .nb-meter > i { background: var(--bad); }
+.nb-meter.low > i { background: var(--bad); }
+.nb-state {
+  flex: 0 0 2.8em; text-align: right; font-size: 0.7em;
+  text-transform: uppercase; letter-spacing: 0.4px; opacity: 0.7;
+}
+.nb-row.bad .nb-state { color: var(--bad); opacity: 1; font-weight: 800; }
+.nb-row.good .nb-state { color: var(--good); opacity: 1; }
+.tiny.warn-text { color: var(--bad); font-weight: 700; }
+
+/* Reactions when the player calls a need out. */
+.callout-reply {
+  padding: 5px 8px; border-left: 4px solid var(--ink);
+  background: rgba(29, 27, 22, 0.05); border-radius: 0 var(--radius) var(--radius) 0;
+  font-size: 0.86em; line-height: 1.3;
+}
+.callout-reply.good { border-left-color: var(--good); background: #D8E8DC; }
+.callout-reply.bad { border-left-color: var(--bad); background: #F0D6CF; }
+
+/* The morning after a night the camp lost. */
+.night-tag {
+  font-family: var(--font-display); font-weight: 800; text-transform: uppercase;
+  letter-spacing: 1.4px; font-size: 0.9em; color: var(--bad);
+}
+.night-text { line-height: 1.42; }
+.night-blame {
+  padding: 6px 9px; border-left: 4px solid var(--warn); background: #F3E7C4;
+  font-style: italic; line-height: 1.35;
+}
+
+/* ---- work action tags ----
+   Every castaway doing a job carries data-act="chop|haul|gather|build|tidy|
+   tend|eat|sleep" plus .act-<name>, set by Beach.sendToWork. These are the
+   ANIMATION HOOKS: a real per-action rig animation drops in here without the
+   labour system needing to know about it. Until then each act gets a small,
+   readable placeholder motion so work is legible at a glance. */
+.bfig.working .btag::after { content: ' ⚒'; opacity: 0.8; }
+.bfig.working .rig > .part.armL { animation: work-arm-l 900ms ease-in-out infinite; }
+.bfig.working .rig > .part.armR { animation: work-arm-r 900ms ease-in-out infinite; }
+.bfig.act-chop .rig > .part.armR { animation: work-chop 620ms ease-in-out infinite; }
+.bfig.act-chop .rig > .part.armL { animation: work-chop 620ms ease-in-out infinite; }
+.bfig.act-haul .rig { animation: work-haul 1500ms ease-in-out infinite; }
+.bfig.act-gather .rig > .part.torso { animation: work-stoop 1300ms ease-in-out infinite; }
+.bfig.act-gather .rig > .part.head { animation: work-stoop 1300ms ease-in-out infinite; }
+.bfig.act-build .rig > .part.armL { animation: work-reach 780ms ease-in-out infinite; }
+.bfig.act-build .rig > .part.armR { animation: work-reach 780ms ease-in-out infinite 0.2s; }
+.bfig.act-tidy .rig > .part.armR { animation: work-sweep 700ms ease-in-out infinite; }
+.bfig.act-tend .rig { animation: work-crouch 1800ms ease-in-out infinite; }
+.bfig.act-eat .rig > .part.armR { animation: work-eat 900ms ease-in-out infinite; }
+.bfig.act-sleep .rig { animation: work-sleep 3200ms ease-in-out infinite; }
+
+@keyframes work-arm-l {
+  0%, 100% { transform: rotate(calc(var(--armL-rest) + 8deg)); }
+  50% { transform: rotate(calc(var(--armL-rest) - 16deg)); }
+}
+@keyframes work-arm-r {
+  0%, 100% { transform: rotate(calc(var(--armR-rest) - 8deg)); }
+  50% { transform: rotate(calc(var(--armR-rest) + 16deg)); }
+}
+@keyframes work-chop {
+  0%, 100% { transform: rotate(calc(var(--armR-rest) - 52deg)); }
+  55% { transform: rotate(calc(var(--armR-rest) + 26deg)); }
+}
+@keyframes work-haul {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(2%) rotate(1.5deg); }
+}
+@keyframes work-stoop {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(8%) rotate(9deg); }
+}
+@keyframes work-reach {
+  0%, 100% { transform: rotate(calc(var(--armL-rest) - 10deg)); }
+  50% { transform: rotate(calc(var(--armL-rest) - 62deg)); }
+}
+@keyframes work-sweep {
+  0%, 100% { transform: rotate(calc(var(--armR-rest) + 34deg)) translateX(0); }
+  50% { transform: rotate(calc(var(--armR-rest) + 14deg)) translateX(-8%); }
+}
+@keyframes work-crouch {
+  0%, 100% { transform: translateY(6%) scaleY(0.94); }
+  50% { transform: translateY(9%) scaleY(0.91); }
+}
+@keyframes work-eat {
+  0%, 100% { transform: rotate(calc(var(--armR-rest) - 6deg)); }
+  50% { transform: rotate(calc(var(--armR-rest) - 74deg)); }
+}
+@keyframes work-sleep {
+  0%, 100% { transform: translateY(14%) rotate(-84deg) scale(0.95); }
+  50% { transform: translateY(15%) rotate(-84deg) scale(0.93); }
+}
+/* Reduce Motion: hold the pose, drop the loop — same rule the idle loops follow,
+   because phones ship with Reduce Motion on and killing these outright made the
+   whole cast look frozen mid-job. */
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .bfig.working .rig,
+  html:not(.motion-full) .bfig.working .rig > .part { animation-iteration-count: 1 !important; }
+}
+html.motion-off .bfig.working .rig,
+html.motion-off .bfig.working .rig > .part { animation: none !important; }
+
+/* ---- telemetry panel in the design log ---- */
+.tel-panel {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 8px 10px; border: 2px solid var(--ink); border-radius: var(--radius);
+  background: rgba(29, 27, 22, 0.05);
+}
+.tel-row { display: flex; align-items: baseline; gap: 8px; font-size: 0.82em; }
+.tel-label { flex: 0 0 7.5em; font-weight: 700; }
+.tel-value { flex: 1; word-break: break-word; }
+.tel-value.good { color: var(--good); font-weight: 700; }
+.tel-value.warn { color: var(--bad); font-weight: 700; }
+.tel-value.dim { opacity: 0.6; }
+.tel-url {
+  font-size: 0.72em; word-break: break-all; cursor: pointer;
+  color: var(--ocean-deep); text-decoration: underline; display: block;
+}
+.tel-input {
+  width: 100%; min-height: 40px; padding: 6px 8px;
+  border: 2px solid var(--ink); border-radius: var(--radius);
+  font-family: inherit; font-size: 0.9em; background: var(--paper);
+}

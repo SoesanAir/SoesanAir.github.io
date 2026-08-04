@@ -1,0 +1,276 @@
+/* ============================================================
+   MINIGAMES D — the five endurance formats in js/chal-games-d.js.
+
+   Every class here starts with `cd-` and then a two-letter game tag, because
+   five games in one sheet otherwise collide on the obvious names — all five want
+   a `.cd-head` and three of them want a `.cd-water`.
+
+     cd-br-  Chimney Sweep      cd-sm-  Simmotion      cd-bk-  Wrist Assured
+     cd-pe-  Uncomfortably Numb cd-td-  Last Gasp
+
+   Shared widgets (.cg-row, .cg-b, .cg-warn, .cg-lane, .cg-dot) come from
+   css/challenges.css and are not restated. Heights are px clamped by vmin: the
+   app is CSS-rotated 90 degrees in portrait, so vh is the wrong axis.
+   ============================================================ */
+
+/* ------------------------------------------------------------
+   1. CHIMNEY SWEEP
+   Two walls, a gap between them, and a figure drawn inside the gap. The gap
+   element is what narrows — the pegs and the limbs are positioned against its
+   edges, so the whole apparatus closes in without a single JS layout sum.
+   ------------------------------------------------------------ */
+.cd-br-chimney {
+  position: relative; overflow: hidden;
+  height: clamp(158px, 34vmin, 198px);
+  border: 2px solid var(--ink); border-radius: 6px;
+  background: linear-gradient(180deg, #CFE6F2 0%, #E7F0E4 100%);
+}
+.cd-br-wall {
+  position: absolute; top: 0; bottom: 0; width: 9%;
+  background: var(--sand-deep);
+  background-image: repeating-linear-gradient(0deg, rgba(29, 27, 22, 0.20) 0 2px, transparent 2px 16px);
+  transition: width 520ms cubic-bezier(.3, 1, .4, 1);
+}
+.cd-br-wall.l { left: 0; border-right: 2px solid var(--ink); }
+.cd-br-wall.r { right: 0; border-left: 2px solid var(--ink); }
+.cd-br-gap {
+  position: absolute; top: 0; bottom: 0; left: 9%; right: 9%;
+  transition: left 520ms cubic-bezier(.3, 1, .4, 1), right 520ms cubic-bezier(.3, 1, .4, 1);
+}
+/* `top` is the only thing that moves the figure, so a slip is a visible drop and
+   the figure's height in the chimney doubles as the health bar. */
+.cd-br-fig {
+  position: absolute; left: 0; right: 0; top: 8px; height: 92px;
+  transition: top 240ms cubic-bezier(.3, 1.5, .5, 1);
+}
+.cd-br-head {
+  position: absolute; left: calc(50% - 9px); top: 0; width: 18px; height: 18px;
+  border-radius: 50%; background: var(--cream); border: 2px solid var(--ink);
+}
+.cd-br-torso {
+  position: absolute; left: calc(50% - 6px); top: 17px; width: 12px; height: 38px;
+  border-radius: 4px; background: var(--ink);
+  transition: background 120ms linear;
+}
+.cd-br-arm { position: absolute; top: 24px; height: 6px; background: var(--ink); border-radius: 3px; }
+.cd-br-arm.l { left: 28px; right: calc(50% + 5px); }
+.cd-br-arm.r { left: calc(50% + 5px); right: 28px; }
+/* The legs are diagonals painted corner-to-corner across a box pinned by
+   left/right, so the hip end and the foot end stay joined up at any wall width.
+   A rotated bar would need its length recomputed every time the pegs drop. */
+.cd-br-leg { position: absolute; top: 52px; height: 36px; }
+.cd-br-leg.l {
+  left: 15px; right: calc(50% - 3px);
+  background: linear-gradient(to top right,
+    transparent calc(50% - 3px), var(--ink) calc(50% - 3px), var(--ink) calc(50% + 3px), transparent calc(50% + 3px));
+}
+.cd-br-leg.r {
+  left: calc(50% - 3px); right: 15px;
+  background: linear-gradient(to bottom right,
+    transparent calc(50% - 3px), var(--ink) calc(50% - 3px), var(--ink) calc(50% + 3px), transparent calc(50% + 3px));
+}
+.cd-br-fig.slipping .cd-br-torso { background: var(--bad); }
+.cd-br-fig.fell { animation: cd-br-fall 460ms cubic-bezier(.4, 0, .8, 1) forwards; }
+@keyframes cd-br-fall {
+  from { transform: translateY(0) rotate(0deg); opacity: 1; }
+  to { transform: translateY(120px) rotate(38deg); opacity: 0.15; }
+}
+
+/* Each contact point is its own button. Colour AND a fill height, because the
+   player is reading four of these at a glance and one channel is not enough. */
+.cd-br-pad {
+  position: absolute; width: 42px; height: 32px; padding: 0; overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 5px;
+  font-family: var(--font-display); font-weight: 800; font-size: 0.58em;
+  letter-spacing: 0.4px; color: var(--ink); line-height: 1; cursor: pointer;
+  z-index: 3;
+}
+.cd-br-grip {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+  background: var(--good); z-index: 1;
+}
+.cd-br-tag { position: relative; z-index: 2; text-shadow: 0 1px 0 rgba(255, 248, 234, 0.6); }
+.cd-br-pad.warn .cd-br-grip { background: var(--warn); }
+.cd-br-pad.gone { border-color: var(--bad); animation: cd-br-blink 360ms infinite alternate; }
+.cd-br-pad.gone .cd-br-grip { background: var(--bad); }
+@keyframes cd-br-blink {
+  from { box-shadow: 0 0 0 0 rgba(201, 79, 61, 0); }
+  to { box-shadow: 0 0 0 4px rgba(201, 79, 61, 0.55); }
+}
+.cd-br-hl { left: 0; top: 11px; }
+.cd-br-hr { right: 0; top: 11px; }
+.cd-br-fl { left: 0; top: 58px; }
+.cd-br-fr { right: 0; top: 58px; }
+.cd-br-slips {
+  font-family: var(--font-display); font-weight: 700; font-size: 0.76em;
+  text-align: center; letter-spacing: 0.6px; opacity: 0.8;
+}
+
+/* ------------------------------------------------------------
+   2. SIMMOTION
+   The three rails are decoration; the ball's triangle-wave vertical is what sells
+   the switchbacks. The baskets copy Log Carry's three-state language exactly —
+   asleep, yours, NOW — because the docs are explicit that a timing game has to
+   show the input before it asks for it.
+   ------------------------------------------------------------ */
+.cd-sm-track {
+  position: relative; overflow: hidden;
+  height: clamp(74px, 17vmin, 88px);
+  border: 2px solid var(--ink); border-radius: 6px;
+  background: rgba(29, 27, 22, 0.08);
+}
+.cd-sm-rail { position: absolute; left: 7px; right: 7px; height: 3px; background: rgba(29, 27, 22, 0.20); border-radius: 2px; }
+.cd-sm-rail.a { top: 12px; }
+.cd-sm-rail.b { top: 34px; }
+.cd-sm-rail.c { top: 56px; }
+.cd-sm-ball {
+  position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border-radius: 50%; background: var(--ember); border: 2px solid var(--ink);
+  box-shadow: inset -3px -3px 0 rgba(29, 27, 22, 0.18);
+}
+.cd-sm-ball.near { background: var(--bad); box-shadow: 0 0 0 3px rgba(201, 79, 61, 0.35); }
+.cd-sm-ball.dropped { animation: cd-sm-drop 450ms cubic-bezier(.4, 0, .9, 1) forwards; }
+@keyframes cd-sm-drop {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(60px); opacity: 0.2; }
+}
+.cd-sm-basket {
+  position: relative; overflow: hidden;
+  flex: 1 1 0; max-width: 200px; min-height: 54px;
+  opacity: 0.45; filter: saturate(0.25);
+  transition: opacity 110ms ease, filter 110ms ease, transform 110ms ease;
+}
+.cd-sm-basket.soon { opacity: 1; filter: none; background: var(--ember); transform: translateY(-2px); }
+.cd-sm-basket.now { opacity: 1; filter: none; background: var(--good); color: var(--paper); }
+.cd-sm-lab { position: relative; z-index: 2; }
+.cd-sm-fill {
+  position: absolute; left: 0; bottom: 0; height: 6px; width: 0%;
+  background: var(--ink); opacity: 0.55; z-index: 1;
+}
+
+/* ------------------------------------------------------------
+   3. WRIST ASSURED
+   The rope's height is the state of the game, so nothing else in the rig moves.
+   The coil gauge is hidden while you are holding and appears the instant you let
+   go, which is the only reason letting go is readable at all.
+   ------------------------------------------------------------ */
+.cd-bk-rig {
+  position: relative; overflow: hidden;
+  height: clamp(158px, 34vmin, 196px);
+  border: 2px solid var(--ink); border-radius: 6px;
+  background: linear-gradient(180deg, #CFE6F2 0%, #F1E6C8 100%);
+}
+.cd-bk-beam { position: absolute; left: 8%; right: 8%; top: 10px; height: 10px; background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 3px; }
+.cd-bk-handle {
+  position: absolute; left: calc(50% - 34px); top: 24px; width: 68px; height: 16px;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 8px;
+}
+/* Coils literally come off the handle as the rope pays out. */
+.cd-bk-coil { width: 6px; height: 9px; background: var(--sand-deep); border: 1px solid var(--ink); border-radius: 2px; transition: opacity 160ms ease; }
+.cd-bk-coil.off { opacity: 0.12; }
+.cd-bk-rope { position: absolute; left: calc(50% - 2px); top: 40px; width: 4px; height: 10px; background: var(--ink); }
+.cd-bk-bucket {
+  position: absolute; left: calc(50% - 18px); top: 44px; width: 36px; height: 30px;
+  background: var(--paper-dim); border: 2px solid var(--ink); border-radius: 2px 2px 7px 7px;
+  overflow: hidden;
+}
+.cd-bk-water { position: absolute; left: 0; right: 0; bottom: 0; height: 62%; background: var(--ocean); border-top: 2px solid var(--ocean-deep); }
+.cd-bk-bucket.down { border-color: var(--bad); background: var(--bad); }
+.cd-bk-sand { position: absolute; left: 0; right: 0; bottom: 0; height: 16px; background: var(--sand); border-top: 2px solid var(--ink); }
+.cd-bk-gauge {
+  position: relative; height: 16px; visibility: hidden;
+  background: rgba(29, 27, 22, 0.12); border: 2px solid var(--ink); border-radius: 4px; overflow: hidden;
+}
+.cd-bk-gauge.live { visibility: visible; }
+.cd-bk-sweet { position: absolute; top: 0; bottom: 0; background: rgba(74, 143, 95, 0.55); border-left: 2px solid var(--good); border-right: 2px solid var(--good); }
+.cd-bk-mark { position: absolute; top: -2px; bottom: -2px; width: 5px; margin-left: -2px; background: var(--ember); border: 2px solid var(--ink); }
+
+/* ------------------------------------------------------------
+   4. UNCOMFORTABLY NUMB
+   The figure tilts from the feet, which is where a person on a perch tilts from.
+   The offer panel is the loudest thing on the screen when it is up, because the
+   offer is the game and the balance is the excuse for it.
+   ------------------------------------------------------------ */
+.cd-pe-stage {
+  position: relative; overflow: hidden;
+  height: clamp(128px, 28vmin, 160px);
+  border: 2px solid var(--ink); border-radius: 6px;
+  background: linear-gradient(180deg, #A8D4F0 0%, #CFE6F2 62%, #7AC4D8 62%, #5AA8BE 100%);
+}
+.cd-pe-bar { position: absolute; left: 26%; right: 26%; top: 10px; height: 8px; background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 3px; }
+.cd-pe-fig { position: absolute; left: 0; right: 0; bottom: 30px; height: 74px; transform-origin: 50% 100%; }
+.cd-pe-head { position: absolute; left: calc(50% - 9px); top: 12px; width: 18px; height: 18px; border-radius: 50%; background: var(--cream); border: 2px solid var(--ink); }
+.cd-pe-torso { position: absolute; left: calc(50% - 6px); top: 29px; width: 12px; height: 26px; border-radius: 4px; background: var(--ink); }
+.cd-pe-legs { position: absolute; left: calc(50% - 5px); top: 54px; width: 10px; height: 20px; background: var(--ink); border-radius: 0 0 3px 3px; }
+/* Arms straight up to the handle overhead — the posture the whole challenge is. */
+.cd-pe-arms { position: absolute; left: calc(50% - 12px); top: 0; width: 24px; height: 32px; border: 5px solid var(--ink); border-bottom: none; border-radius: 8px 8px 0 0; }
+.cd-pe-fig.fell { animation: cd-pe-fall 500ms cubic-bezier(.4, 0, .8, 1) forwards; }
+@keyframes cd-pe-fall {
+  from { transform: rotate(0deg) translateY(0); opacity: 1; }
+  to { transform: rotate(76deg) translateY(46px); opacity: 0.2; }
+}
+.cd-pe-post { position: absolute; left: calc(50% - 7px); bottom: 8px; width: 14px; height: 24px; background: var(--sand-deep); border: 2px solid var(--ink); border-radius: 2px; }
+.cd-pe-sea { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; background: var(--ocean-deep); border-top: 2px solid var(--ink); }
+.cd-pe-offer { display: none; }
+.cd-pe-offer.up {
+  display: flex; flex-direction: column; gap: 5px;
+  padding: 7px 9px;
+  background: var(--cream); border: var(--outline) solid var(--ink); border-radius: var(--radius);
+  box-shadow: 4px 4px 0 rgba(29, 27, 22, 0.45);
+  animation: cd-pe-in 200ms cubic-bezier(.2, 1.5, .4, 1);
+}
+@keyframes cd-pe-in { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.cd-pe-txt { font-size: 0.84em; line-height: 1.28; }
+.cd-pe-cmp { font-family: var(--font-display); font-weight: 800; font-size: 0.8em; letter-spacing: 0.4px; text-transform: uppercase; }
+.cd-pe-fuse { height: 7px; background: rgba(29, 27, 22, 0.15); border: 2px solid var(--ink); border-radius: 3px; overflow: hidden; }
+.cd-pe-fuse > i { display: block; height: 100%; width: 100%; background: var(--ember); }
+
+/* ------------------------------------------------------------
+   5. LAST GASP
+   A cross-section: grate bolted across the top, water climbing from the bottom,
+   and a dashed line at mouth height. The dashed line is the whole telegraph —
+   the player watches the swell approach a threshold they can actually see.
+   ------------------------------------------------------------ */
+.cd-td-tank {
+  position: relative; overflow: hidden;
+  height: clamp(146px, 32vmin, 184px);
+  border: 2px solid var(--ink); border-radius: 6px;
+  background: linear-gradient(180deg, #3A2757 0%, #5AA8BE 100%);
+}
+.cd-td-grate {
+  position: absolute; left: 0; right: 0; top: 0; height: 14px;
+  background: var(--ink);
+  background-image: repeating-linear-gradient(90deg, var(--ink) 0 6px, rgba(232, 219, 168, 0.55) 6px 10px);
+  border-bottom: 2px solid var(--ink); z-index: 4;
+}
+.cd-td-water {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 70%; z-index: 2;
+  background: linear-gradient(180deg, rgba(90, 168, 190, 0.92) 0%, var(--ocean-deep) 100%);
+}
+.cd-td-surf { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--paper); opacity: 0.75; }
+/* Mouth height. Everything above it is air; everything below it is not. */
+.cd-td-mouth { position: absolute; left: 0; right: 0; bottom: 76%; height: 0; border-top: 2px dashed rgba(255, 248, 234, 0.8); z-index: 3; }
+.cd-td-head {
+  position: absolute; left: calc(50% - 15px); bottom: calc(76% - 9px);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: var(--cream); border: 2px solid var(--ink); z-index: 3;
+  transition: filter 120ms linear;
+}
+.cd-td-face { position: absolute; left: 7px; right: 7px; bottom: 8px; height: 4px; background: var(--ink); border-radius: 2px; }
+.cd-td-head.under { filter: brightness(0.62) saturate(0.5); }
+.cd-td-head.gulp { background: var(--bad); }
+.cd-td-tank.out { filter: grayscale(0.8) brightness(0.6); }
+.cd-td-meter { height: 14px; background: rgba(29, 27, 22, 0.15); border: 2px solid var(--ink); border-radius: 4px; overflow: hidden; }
+.cd-td-meter > i { display: block; height: 100%; width: 100%; background: var(--good); }
+.cd-td-meter > i.low { background: var(--bad); }
+/* Same green as Log Carry's "NOW" — across the whole file set, green means the
+   input is live this instant. Tag-qualified so it outranks .btn.primary whatever
+   order the sheets end up linked in. */
+button.btn.cd-td-go { background: var(--good); color: var(--paper); }
+
+@media (prefers-reduced-motion: reduce) {
+  html:not(.motion-full) .cd-br-pad.gone { animation: none; }
+  html:not(.motion-full) .cd-pe-offer.up { animation: none; }
+}

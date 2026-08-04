@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<!-- FBX -> GLB conversion rig. Driven by tools/fbx2glb.js over CDP; not part of
+     the game and never linked from index.html.
+
+     Why a browser at all: there is no Blender on this machine and no FBX toolchain,
+     but three.js can already parse FBX and write glTF. Doing the conversion with the
+     same library that will later LOAD the result also means anything that survives
+     the round trip is guaranteed loadable at runtime. -->
+<html><head><meta charset="utf-8"><title>convert</title></head>
+<body>
+<script type="module">
+import * as THREE from '../vendor/three/three.module.js';
+import { FBXLoader } from '../vendor/three/loaders/FBXLoader.js';
+import { GLTFExporter } from '../vendor/three/exporters/GLTFExporter.js';
+import { mergeVertices } from '../vendor/three/utils/BufferGeometryUtils.js';
+import { SimplifyModifier } from '../vendor/three/modifiers/SimplifyModifier.js';
+
+const simplify = new SimplifyModifier();
+
+/* ---------- how hard can this prop be decimated ----------
+   The atlas doubles as a colour PALETTE: most solid props map their entire mesh to a
+   single ~20px swatch. For those, a collapsed vertex cannot slide the colour, because
+   every UV in the mesh points at effectively the same pixel — so they can be cut hard.
+
+   Props with real texture mapping (palm fronds, vines, scaffolding) span most of the
+   atlas, and there a moved UV genuinely smears the leaf it was sampling. Those get a
+   gentle ratio.
+
+   Measured UV span decides it rather than a guess per name. r160's SimplifyModifier
+   does carry uv and normal through the edge collapse, which is what makes this safe
+   at all — an older one dropped everything but position. */
+function keepRatio(geo) {
+  const uv = geo.getAttribute('uv');
+  if (!uv) return 0.30;                     /* no UVs to ruin */
+  let lo0 = Infinity, hi0 = -Infinity, lo1 = Infinity, hi1 = -Infinity;
+  for (let i = 0; i < uv.count; i++) {
+    const u = uv.getX(i), v = uv.getY(i);
+    if (u < lo0) lo0 = u; if (u > hi0) hi0 = u;
+    if (v < lo1) lo1 = v; if (v > hi1) hi1 = v;
+  }
+  const span = Math.max(hi0 - lo0, hi1 - lo1);
+  return span < 0.12 ? 0.30 : 0.55;
+}
+
+/* ============================================================
+   REAL-WORLD SIZE, per family.
+
+   The single most important table in the pipeline. These six packs do not agree about
+   authoring units — not even within one pack. Measured raw FBX max dimensions:
+
+     Mountain_1A     20000      Cloud_1A          7318
+     Rock_Large      2596       Palm_Tree_01A     1906
+     TFF_Bush        204        Shell_01A         30.6
+     Head_Entrance   16.0       Fern_01A          2.52
+     Braizer         2.44       Wood_Barrel       1.14
+     Wood_Crate      0.62       Coconut           0.30
+
+   Five orders of magnitude. So the old blanket x0.01 was right for palms and rocks
+   purely by luck and wrong for everything else: it shipped 216 props under 5 cm —
+   barrels a centimetre tall, crates you could not see — and 17 over 30 metres. The
+   prop audit caught all of it at once.
+
+   Guessing a unit factor cannot work. Declaring how tall the THING IS can: a palm is
+   about eleven metres, a coconut is a hand's width, a background mountain is ninety.
+   The converter measures each model and scales it to hit its target, so every GLB
+   comes out correctly sized no matter how its pack was authored.
+
+   Matched longest-key-first, so `Rock_Large` beats `Rock`, and `Palm_Tree_Broken`
+   beats `Palm_Tree`. FALLBACK is deliberately human-scale: an unmatched prop looks
+   slightly wrong rather than invisible or planet-sized.
+   ============================================================ */
+const SIZE = {
+  /* --- horizon: legitimately enormous --- */
+  Mountain: 90, BG_Mountain: 120, BG_Desert_Mountain: 90, BG_Dunes: 45,
+  Hills: 40, Cloud: 26,
+  /* --- trees --- */
+  Palm_Tree_Broken: 5.5, Palm_Tree: 11, Palm_Trunk: 6.5, Palm_Sapling: 2.2,
+  Palm_Log: 3.2, Aspen_Tree: 12, Oak_Tree: 11, Pine_Tree: 13, Birch_Tree: 12,
+  Board_Pine_Tree: 13, Board_Birch_Tree: 12, Board_Dead_Tree: 10,
+  Forest_Tree: 12, Dry_Tree: 7, Tree_Broken: 5, Tree_Fallen: 4.5, Tree_Trunk: 5,
+  Tree_Log: 2.6, Wood_Log: 2.2, Tree: 9,
+  /* --- undergrowth --- */
+  Bush_Stub: 0.7, Bush: 1.3, Fern: 1.1, Nettle: 0.8, Reed: 1.4,
+  Plant_Leaves: 1.0, Plant_Dry: 0.9, Plant: 1.0,
+  Grass_Patch: 0.55, Flowers_Patch: 0.45, Flower_Patch: 0.45, Flower_Pot: 0.5,
+  Flower: 0.3, Lily_Flower: 0.35, Lotus_Flower: 0.4, Lotus_Leaf: 0.5,
+  Water_LillY_Leaf: 0.5, Water_Lily: 0.5, Water_Plant: 0.9,
+  Glowing_Mushroom: 0.35, Glowing_Lilly: 0.4, Mushrooms: 0.3, Mushroom: 0.3,
+  Ivy: 1.6, Leaf_Coverage: 0.35, Leaf: 0.2, Fallen_Leaves: 0.25,
+  Vine: 3.0, Rope_Vine: 3.5, Dry_Bush: 1.1,
+  /* --- rock --- */
+  Rock_Large: 4.0, Rock_Medium: 1.8, Rock_Small: 0.6, Small_Rock: 0.6,
+  Rock_Boulder: 2.4, Rock_Cluster: 1.4, Rock_Skull: 5.0, Rock_Slab: 1.2,
+  Rock_Idol: 3.4, Cliff_Horizontal: 12, Cliff_Vertical: 16, Cliff: 14,
+  Stone_Arch: 6.0, Stone_Block: 1.0, Stone_Slab: 1.2, Stone_Steps: 1.6,
+  Stone_Pillar: 4.0, Stone_Pavilion: 5.5, Stone_Bridge: 6.0, Stone_Railing: 1.1,
+  Stone: 0.9, Sand_Pile: 1.2, Dirt: 0.9, Dust_Pile: 0.5, Rubble: 0.8,
+  /* --- the tide line --- */
+  Shell: 0.22, StarFish: 0.28, Coconut: 0.24, Turtle_Shell: 0.7,
+  Bone_Pile: 0.7, Skull: 0.3, Skeleton: 1.7, Animal_Skull: 0.45,
+  Whale_Skeleton: 6.0, Giant_Skeleton: 7.0, Shipwreck: 9.0,
+  Seagull: 0.4, Crow: 0.35, Fish: 0.35, Swordfish_Steak: 0.25, Swordfish: 1.6,
+  Underwater_Plant: 0.9, Underwater_Rock: 1.4, Pine_Cone: 0.12,
+  Twigs: 0.4, Wooden_Twigs: 0.4, Branch_Fallen: 1.6, Debris: 0.6,
+  Falling_Leaf: 0.15, Web: 1.2,
+  /* --- what the tribe builds --- */
+  Campfire: 0.8, Camp_Fire: 0.8, Camp_Grill: 0.8, Camp_Rotisory: 1.1,
+  Cauldron: 0.7, Tripod: 1.4, Torch: 1.7, Staging: 2.4, Ladder: 2.6,
+  Cloth: 1.4, Wood_Crate: 0.8, Wood_Barrel: 0.95, Wood_Bucket: 0.4,
+  Wood_Bench: 0.5, Wood_Stack: 0.8, Canopy: 2.6, Tent: 1.8,
+  Sack: 0.6, Jug: 0.4, Bed: 0.5, Shelf: 1.6, Table: 0.8, Chair: 0.9,
+  Fishing_Net: 1.4, Rope_Pile: 0.35, Rope: 1.2, Anchor: 1.4,
+  Raft: 2.6, Boat: 4.0, Canoe: 4.2, Paddle: 1.6, Wooden_Pier: 4.0,
+  Axe: 0.8, Shovel: 1.1, Spear: 1.9, Bottle: 0.3, Lamp: 0.4, Candle: 0.2,
+  /* --- council and ruins --- */
+  Braizer: 1.3, Head_Entrance: 6.5, Altar: 1.5, Column: 5.0,
+  Wall_Plinth: 1.2, Wall_Writing_Tablet: 1.6, Wall_Decoration: 1.2,
+  Rune: 0.9, Circular_Stairs: 2.0, Stairs: 1.4, Gate: 5.0,
+  Sarcophagus: 2.2, Urn_Broken: 0.6, Urn: 0.8, Chest: 0.7,
+  Incense: 0.3, Bowl: 0.2, Cup: 0.15, Pot: 0.4, Plate: 0.25,
+  Papyrus: 0.4, Pavement: 1.2, Fountain: 2.4, Sundial: 1.1,
+  Broken_Pillar: 2.4, Ruin: 2.6, Waterfall: 6.0,
+  Chalice: 0.25, Golden_Cup: 0.2, Golden_Plate: 0.25,
+  Treasure_Chest: 0.8, Gold_Coin: 0.06, Gold_Sack: 0.5, Coin: 0.05,
+  /* --- challenge course --- */
+  Climbing_Grips: 5.0, Scaffolding: 3.6, Beam: 3.0, Railing: 1.1,
+  Wooden_Bridge: 3.2, Bridge_Modular: 4.0, Bridge_Pillar: 2.4,
+  Wooden_Pavilion: 3.4, Wooden_Pole: 3.0, Wooden_Ramp: 2.2,
+  Wooden_Steps: 1.2, Wooden_Beam: 3.0, Wooden_Plank: 2.2,
+  Wood_Plank: 2.2, Wood_Beam: 3.0, Wood_Pillar: 3.0, Wood_Platform: 2.6,
+  Plank: 2.0, Stake: 1.2, Flag: 4.0, Pier_Structure: 4.0, Pier_Bollard: 0.9,
+  /* --- the feast --- */
+  Steak: 0.22, Bacon_Strip: 0.16, Scrambled_Egg: 0.16, Tea_Cup: 0.1,
+  Thermos: 0.28, Beer_Bottle: 0.28, Tankard: 0.16, Rum_Bottle: 0.3,
+  Apple_Crate: 0.6, Apple: 0.09, Carrot: 0.18, Tomato_Crate: 0.6, Tomato: 0.08,
+  Pear_Crate: 0.6, Produce_Crate: 0.6,
+  /* --- trinkets --- */
+  Treasure_Map: 0.3, Compass: 0.1, Spyglass: 0.25, Hat: 0.3,
+  Book: 0.25, Dagger: 0.3, Sword: 0.9
+};
+const SIZE_KEYS = Object.keys(SIZE).sort((a, b) => b.length - a.length);
+const FALLBACK = 1.0;
+
+function targetHeight(name) {
+  const bare = name.replace(/^(TAI|TFF|TNA|TFD|TEM|TDS)_/, '');
+  for (const k of SIZE_KEYS) if (bare.toLowerCase().indexOf(k.toLowerCase()) === 0) return SIZE[k];
+  /* Second pass: a substring match, for names like Wall_Writing_Tablet_01A that do
+     not start with their family. */
+  for (const k of SIZE_KEYS) if (bare.toLowerCase().indexOf(k.toLowerCase()) >= 0) return SIZE[k];
+  return FALLBACK;
+}
+
+const fbx = new FBXLoader();
+const exporter = new GLTFExporter();
+
+/* One shared material on every mesh. Textures are deliberately DISCARDED: the pack's
+   FBX materials point at .psd files on the author's own desktop, and the runtime
+   replaces every material with the shared atlas anyway. Keeping them would embed
+   dead texture references and placeholder images in each GLB for nothing.
+
+   What must survive is UVs — those are the whole point, because the atlas doubles as
+   a colour palette and a prop's identity is its UV coordinates. */
+const shared = new THREE.MeshLambertMaterial({ name: 'atlas' });
+
+window.rawSize = async function (name) {
+  const g = await fbx.loadAsync("./_fbx/" + name + ".fbx");
+  const b = new THREE.Box3().setFromObject(g);
+  const v = b.getSize(new THREE.Vector3());
+  return { name, max: +Math.max(v.x, v.y, v.z).toFixed(2) };
+};
+
+window.convert = async function (name) {
+  const g = await fbx.loadAsync('./_fbx/' + name + '.fbx');
+
+  let meshes = 0, verts = 0, tris = 0, hadUV = 0, before = 0;
+  const swap = [];
+  let skinned = 0, skipped = 0;
+  const dead = [];
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    /* Skinned or morph-target meshes must not be simplified: the modifier rebuilds the
+       geometry and drops the very attributes the skin needs, leaving a mesh whose
+       position buffer is gone. Crow, Fish and Seagull are animated. */
+    if (o.isSkinnedMesh || (o.morphTargetInfluences && o.morphTargetInfluences.length)) skinned++;
+    /* A mesh with no position buffer cannot be measured, merged, simplified or
+       exported. Crow, Fish and Seagull are animated and arrive this way. Skipping the
+       mesh keeps the rest of the prop, rather than losing the whole model to a throw. */
+    if (!o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) { dead.push(o); skipped++; return; }
+    meshes++;
+    o.material = shared;
+    let geo = o.geometry;
+    if (geo.attributes.uv) hadUV++;
+    /* Strip everything the renderer will not read. Tangents, second UV sets, vertex
+       colours and skin weights are all dead weight for a static prop, and they are
+       a surprising share of an FBX's size. */
+    for (const attr of Object.keys(geo.attributes)) {
+      if (attr !== 'position' && attr !== 'normal' && attr !== 'uv') geo.deleteAttribute(attr);
+    }
+    if (!geo.attributes.normal) geo.computeVertexNormals();
+    before += geo.attributes.position.count;
+
+    /* INDEX THE GEOMETRY. This is the single biggest saving in the whole pipeline.
+       FBXLoader emits non-indexed triangle soup — three unique vertices per triangle,
+       32 bytes each, so a shared corner is stored as many times as it is used. The
+       first conversion run produced GLB files LARGER than the source FBX for exactly
+       this reason: 22.6 MB out of 21.2 MB in, about 96 bytes per triangle.
+
+       mergeVertices welds vertices that agree on position, normal and UV within a
+       tolerance and builds an index buffer. Toon props are mostly flat-shaded panels
+       with hard edges, so the win is large but not total — a hard edge legitimately
+       needs its vertices duplicated, or the normals blend and the facets smear. */
+    try {
+      const merged = mergeVertices(geo, 1e-4);
+      if (merged.attributes.position.count < geo.attributes.position.count) {
+        swap.push([o, merged]);
+        geo = merged;
+      }
+    } catch (e) { /* a geometry that will not merge is still perfectly usable */ }
+
+    /* ---------- decimate ----------
+       These props only have to look right at a distance — most of them are background.
+       Cutting the polygon count is the one change that helps every phone regardless of
+       density setting.
+
+       Indexed input is required, hence doing this AFTER mergeVertices. Anything under
+       ~120 triangles is left alone: it is already cheap, and collapsing a 4-triangle
+       flower just deletes it. */
+    try {
+      const triCount = (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
+      if (triCount > 120 && !skinned) {
+        const keep = keepRatio(geo);
+        const drop = Math.floor(geo.attributes.position.count * (1 - keep));
+        if (drop > 0) {
+          const simp = simplify.modify(geo, drop);
+          if (simp && simp.attributes.position && simp.attributes.position.count > 8) {
+            simp.computeVertexNormals();
+            const at = swap.findIndex(s => s[0] === o);
+            if (at >= 0) swap[at][1] = simp; else swap.push([o, simp]);
+            geo = simp;
+          }
+        }
+      }
+    } catch (e) { /* a mesh that will not simplify ships at full detail */ }
+
+    verts += geo.attributes.position.count;
+    tris += (geo.index ? geo.index.count : geo.attributes.position.count) / 3;
+  });
+  for (const [o, geo] of swap) o.geometry = geo;
+  for (const o of dead) if (o.parent) o.parent.remove(o);
+
+  /* ---------- normalise to real-world size ----------
+     Measure, then scale to the target from SIZE. Baked into the GLB so the runtime
+     never has to know a prop's authoring quirks — a prop dropped into a scene is
+     already the right size.
+
+     Replaces a blanket x0.01, which was right for palms by luck and shipped 216 props
+     under five centimetres. */
+  const box0 = new THREE.Box3().setFromObject(g);
+  const s0 = box0.getSize(new THREE.Vector3());
+  const raw = Math.max(s0.x, s0.y, s0.z);
+  const want = targetHeight(name);
+  const factor = raw > 1e-6 ? want / raw : 1;
+  g.scale.setScalar(factor);
+  g.updateMatrixWorld(true);
+
+  /* Sit it on the ground. Origins in these packs are inconsistent — some centred, some
+     at the base — and a prop buried to the waist is as wrong as one floating. */
+  const box1 = new THREE.Box3().setFromObject(g);
+  if (isFinite(box1.min.y)) {
+    g.position.y -= box1.min.y;
+    g.updateMatrixWorld(true);
+  }
+
+  const glb = await new Promise((res, rej) => {
+    exporter.parse(g, res, rej, { binary: true, onlyVisible: false, truncateDrawRange: true });
+  });
+
+  /* Base64 so it survives the CDP string boundary. */
+  let bin = '';
+  const bytes = new Uint8Array(glb);
+  const CH = 0x8000;
+  for (let i = 0; i < bytes.length; i += CH) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+  }
+  return { name, b64: btoa(bin), bytes: bytes.length, meshes, verts, before, tris: Math.round(tris), hadUV, skinned, skipped, scaled: +factor.toFixed(5), raw: +raw.toFixed(2), want };
+};
+window.__ready = true;
+</script>
+</body></html>

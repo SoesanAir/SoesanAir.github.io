@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Castaway</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/splash.css">
+<link rel="stylesheet" href="css/challenges.css">
+<link rel="stylesheet" href="css/chal-howto.css">
+<link rel="stylesheet" href="css/tribes.css">
+<link rel="stylesheet" href="css/circle.css">
+<link rel="stylesheet" href="css/whisper.css">
+<link rel="stylesheet" href="css/tribalqa.css">
+<link rel="stylesheet" href="css/scene3d.css">
+<link rel="stylesheet" href="css/reward.css">
+<link rel="stylesheet" href="css/chal-games-d.css">
+<link rel="stylesheet" href="css/chal-games-e.css">
+<link rel="stylesheet" href="css/chal-games-f.css">
+<link rel="stylesheet" href="css/chal-games-g.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ TITLE ============ -->
+  <section id="screen-title" class="screen day-bg">
+    <div id="title-beach">
+      <div class="b-sky"><div class="b-sun"></div></div>
+      <div class="b-sea"><i class="wave w1"></i><i class="wave w2"></i></div>
+      <div class="b-ground g-sand"></div>
+      <div class="palm tp1"><div class="fronds"><div class="frond"></div><div class="frond"></div><div class="frond"></div><div class="frond"></div></div><div class="trunk"></div></div>
+      <div class="palm tp2"><div class="fronds"><div class="frond"></div><div class="frond"></div><div class="frond"></div><div class="frond"></div></div><div class="trunk"></div></div>
+    </div>
+    <!-- Settings and the design log used to be reachable only once a season was
+         running, which is the one time you are least likely to want them. -->
+    <button class="btn small" id="btn-title-menu">Menu</button>
+    <div class="grow col center" style="gap:14px; z-index:12; padding-bottom:16vh;">
+      <h1 class="title-logo">CASTAWAY</h1>
+      <div class="subtitle">Outwit the island. Outlast the tribe.</div>
+      <div class="row" style="gap:12px; margin-top:8px;">
+        <button class="btn primary" id="btn-new-game">New Season</button>
+        <button class="btn sand hidden" id="btn-continue">Continue</button>
+      </div>
+      <div class="tiny subtitle dim" id="title-version"></div>
+    </div>
+  </section>
+
+  <!-- ============ CHARACTER CREATION ============ -->
+  <section id="screen-create" class="screen day-bg">
+    <div id="hud-create" class="row" style="padding:10px 16px 0;">
+      <h2 class="subtitle" style="font-size:1.3em;">Build your castaway</h2>
+    </div>
+    <div id="create-body">
+      <div class="create-col preview">
+        <img id="create-preview-img" src="assets/bodies/male_muscular.png" alt="Your castaway">
+        <div class="chip" id="create-name-chip">Castaway</div>
+      </div>
+      <div class="create-col controls panel">
+        <div class="opt-row">
+          <span class="lbl">Name</span>
+          <input type="text" id="create-name" maxlength="14" placeholder="Your name" autocomplete="off">
+        </div>
+        <div class="opt-row">
+          <span class="lbl">Gender</span>
+          <div class="seg" id="seg-gender"></div>
+        </div>
+        <div class="opt-row">
+          <span class="lbl">Body</span>
+          <div class="seg" id="seg-body"></div>
+        </div>
+        <div class="opt-row">
+          <span class="lbl">Look</span>
+          <div class="seg" id="seg-look"></div>
+        </div>
+        <div class="opt-row">
+          <span class="lbl">Job</span>
+          <button class="btn small sand" id="btn-occ-cycle">Reroll</button>
+          <span class="chip" id="occ-label"></span>
+        </div>
+        <div class="col" id="stat-alloc" style="margin-top:6px;"></div>
+        <div class="row" style="margin-top:8px;">
+          <button class="btn ghost" id="btn-create-back" style="color:var(--ink);border-color:var(--ink);">Back</button>
+          <div class="grow"></div>
+          <button class="btn primary" id="btn-create-go">Head to the island</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MAROONING (season opener) ============ -->
+  <section id="screen-maroon" class="screen day-bg">
+    <div class="gl-host" id="maroon-3d"></div>
+    <div id="maroon-stage">
+      <div class="b-sky"><div class="b-sun"></div></div>
+      <div class="b-sea"><i class="wave w1"></i><i class="wave w2"></i></div>
+      <div class="b-ground g-sand"></div>
+      <div id="maroon-line"></div>
+      <div id="maroon-applause"></div>
+    </div>
+    <div id="maroon-panel" class="panel">
+      <div id="maroon-convo"></div>
+      <div id="maroon-choices"></div>
+    </div>
+    <!-- Above the panel, not inside the beach: the opening card is a takeover of
+         the whole screen, and being a child of the stage capped its z-index. -->
+    <div id="maroon-title"></div>
+    <div id="maroon-dip"></div>
+  </section>
+
+  <!-- ============ CAMP (main loop) ============ -->
+  <section id="screen-camp" class="screen day-bg">
+    <div id="hud">
+      <span class="day-chip" id="hud-day">Day 1</span>
+      <span class="chip" id="hud-tribe">Tidal</span>
+      <span class="chip" id="hud-phase">Morning</span>
+      <span class="chip" id="hud-weather">Sun</span>
+      <span id="hud-cond" class="row" style="gap:4px;"></span>
+      <div class="spacer"></div>
+      <button class="btn small ocean" id="btn-intel">Intel</button>
+      <button class="btn small sand" id="btn-relations">Bonds</button>
+      <button class="btn small ocean" id="btn-alliances">Alliances</button>
+      <button class="btn small" id="btn-help">?</button>
+      <button class="btn small" id="btn-menu">Menu</button>
+    </div>
+    <div id="objective-bar" class="hidden">
+      <span class="obj-tag">Objective</span>
+      <span id="objective-text"></span>
+    </div>
+    <div id="camp-main">
+      <div id="camp-scene">
+        <div id="world">
+          <div id="figures"></div>
+        </div>
+      </div>
+      <div id="camp-side">
+        <div class="panel grow col" id="log-panel" style="min-height:0;">
+          <div class="row" id="log-head" style="padding:8px 12px 0;">
+            <b class="display">Camp Log</b>
+            <span class="spacer" style="flex:1;"></span>
+            <button class="btn small sand" id="btn-feed-filter">All</button>
+            <button class="btn small" id="btn-feed-min" title="Minimize log" aria-label="Minimize log">&minus;</button>
+          </div>
+          <div id="feed"></div>
+          <!-- Collapsed state: one line showing the newest entry, flickering
+               while there is something unread for the player to address. -->
+          <button id="feed-ticker" aria-label="Expand camp log">
+            <span class="ft-tag">Log</span>
+            <span class="ft-text" id="feed-ticker-text">Season begins.</span>
+            <span class="ft-count hidden" id="feed-unread">0</span>
+            <span class="ft-caret">&#9650;</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div id="action-bar"></div>
+
+    <!-- Dialogue overlay -->
+    <div id="dialogue-layer">
+      <div id="dialogue-box">
+        <div id="dlg-portrait"><img src="" alt=""></div>
+        <div id="dlg-content" class="panel">
+          <div id="dlg-speaker"></div>
+          <div id="dlg-text"></div>
+          <div id="dlg-choices"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CHALLENGE ============ -->
+  <!-- scroll-y is load-bearing, not tidiness: this screen used to overflow a 344px
+       viewport by 158px with nothing scrollable, which put the Continue button off
+       the bottom and left the player with no way out of the challenge. -->
+  <section id="screen-challenge" class="screen day-bg">
+    <div class="gl-host" id="chal-3d"></div>
+    <div class="grow col center scroll-y" style="gap:14px; padding:16px;">
+      <h2 class="subtitle" style="font-size:1.5em;" id="chal-title">Immunity Challenge</h2>
+      <div class="panel col" style="padding:16px 22px; max-width:640px; gap:10px;">
+        <b class="display" id="chal-name"></b>
+        <div id="chal-desc" style="line-height:1.4;"></div>
+        <div class="row" id="chal-stats" style="flex-wrap:wrap;"></div>
+        <div id="chal-result" class="col" style="gap:6px;"></div>
+      </div>
+      <button class="btn primary" id="btn-chal-go">Compete</button>
+      <div id="chal-game"></div>
+      <button class="btn sand hidden" id="btn-chal-done">Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ TRIBAL COUNCIL ============ -->
+  <section id="screen-tribal" class="screen night-bg">
+    <div class="gl-host" id="tribal-3d"></div>
+    <div class="grow col" style="padding:12px 16px; gap:8px; min-height:0;">
+      <div class="col center" style="gap:4px;">
+        <div id="tribal-fire"><div class="flame"></div><div class="flame f2"></div><div class="torch-base"></div></div>
+        <div class="peff-line" id="tribal-peff"><span class="peff-tag">Peff</span><span id="tribal-peff-text"></span></div>
+      </div>
+      <div class="grow cast-grid" id="tribal-grid"></div>
+      <div class="row center" style="gap:12px;">
+        <button class="btn ember" id="btn-vote-confirm" disabled>Cast vote</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ TRIBAL CONVERSATION ============ -->
+  <!-- One line at a time, always behind a tap. Peff and the castaways share the
+       screen; .is-peff swaps which side is lit. -->
+  <section id="screen-tribalqa" class="screen night-bg">
+    <div class="gl-host" id="tqa-3d"></div>
+    <div class="grow col" style="padding:12px 16px; gap:10px; min-height:0;">
+      <div id="tqa-fire"><div class="flame"></div><div class="flame f2"></div><div class="torch-base"></div></div>
+      <div id="tqa-stage">
+        <div id="tqa-portrait"></div>
+        <div id="tqa-bubble" class="panel">
+          <div id="tqa-who"></div>
+          <div id="tqa-text"></div>
+        </div>
+      </div>
+      <div id="tqa-choices" class="col"></div>
+      <div class="row center">
+        <button class="btn ember" id="btn-tqa-next">Next</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VOTE REVEAL ============ -->
+  <section id="screen-reveal" class="screen night-bg">
+    <div class="gl-host" id="reveal-3d"></div>
+    <div class="grow col center" style="gap:18px; padding:16px;">
+      <div class="peff-line"><span class="peff-tag">Peff</span><span id="reveal-peff-text">I'll read the votes.</span></div>
+      <div id="reveal-slot" class="col center" style="min-height:110px;"></div>
+      <div class="row" id="reveal-tally" style="flex-wrap:wrap; justify-content:center; gap:8px;"></div>
+      <button class="btn ember" id="btn-reveal-next">Next vote</button>
+    </div>
+  </section>
+
+  <!-- ============ FINALE / MOMENTS ============ -->
+  <section id="screen-finale" class="screen night-bg">
+    <div class="grow col center scroll-y" style="gap:14px; padding:16px;">
+      <div class="peff-line"><span class="peff-tag">Peff</span><span id="finale-peff-text"></span></div>
+      <div id="finale-body" class="col center" style="gap:12px; max-width:720px;"></div>
+      <button class="btn ember" id="btn-finale-next">Continue</button>
+    </div>
+  </section>
+
+  <!-- ============ AFTERSHOW ============ -->
+  <section id="screen-aftershow" class="screen day-bg">
+    <div class="grow col scroll-y" style="padding:14px 18px; gap:10px;">
+      <h2 class="subtitle" style="font-size:1.4em;">The Aftershow</h2>
+      <div id="aftershow-body" class="col" style="gap:10px; max-width:820px;"></div>
+      <div class="row" style="margin:8px 0 16px;">
+        <button class="btn primary" id="btn-back-to-title">Back to title</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ Whispering at tribal ============
+       The bench across the top so you can see who is leaning where, then one
+       whispered line at a time. Peff watches and does not intervene. -->
+  <section id="screen-whisper" class="screen night-bg">
+    <div class="grow col" style="padding:10px 14px; gap:6px; min-height:0;">
+      <div class="wh-head">
+        <span class="wh-tag">WHISPERS</span>
+        <div class="wh-bench" id="wh-bench"></div>
+      </div>
+      <div class="wh-convo" id="wh-convo"></div>
+      <div class="wh-choices" id="wh-choices"></div>
+    </div>
+  </section>
+
+  <!-- ============ The circle meeting ============
+       A full-screen huddle rather than a modal, because it is a scene: the whole
+       alliance in one place, speaking one line at a time. -->
+  <div id="pact-layer">
+    <div class="ci-frame">
+      <div class="ci-head">
+        <span class="ci-title">THE PACT</span>
+        <div class="ci-meters">
+          <div class="ci-meter"><span class="ci-meter-tag">HOLDING</span><div class="ci-bar"><i id="ci-cohesion"></i></div></div>
+          <div class="ci-meter"><span class="ci-meter-tag">SEEN</span><div class="ci-bar warn"><i id="ci-visible"></i></div></div>
+        </div>
+      </div>
+      <div class="ci-members" id="ci-members"></div>
+      <div class="ci-convo" id="ci-convo"></div>
+      <div class="ci-choices" id="ci-choices"></div>
+    </div>
+  </div>
+
+  <!-- ============ Shared modal + toasts ============ -->
+  <div class="modal-veil" id="modal-veil">
+    <div class="modal panel">
+      <div class="modal-head"><span id="modal-title"></span><span class="spacer"></span><button class="btn small" id="modal-close">X</button></div>
+      <div class="modal-body" id="modal-body"></div>
+    </div>
+  </div>
+  <div id="toast-wrap"></div>
+
+  <!-- ============ Studio splash ============
+       Written into the page rather than injected on boot, because it has to be
+       on screen for the very first paint and anything built from script arrives
+       a frame or two late. It is not a .screen: the boot sequence already puts
+       the title up on load, so this just sits over the top and deletes itself,
+       which is also what guarantees it cannot come back later. -->
+  <div id="splash" role="presentation" aria-hidden="true">
+    <img id="splash-logo" src="assets/brand/sosun.png" alt="So Sun Game Studio">
+  </div>
+
+</div>
+
+<script src="js/dbg.js"></script>
+<script src="js/tribes.js"></script>
+<script src="js/report.js"></script>
+<script src="js/telemetry.js"></script>
+<script src="js/rig.js"></script>
+<script src="js/data.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/voice2.js"></script>
+<script src="js/voice3.js"></script>
+<script src="js/maroon-stings.js"></script>
+<script src="js/maroon-questions.js"></script>
+<script src="js/idol-lines.js"></script>
+<script src="js/confront-lines.js"></script>
+<script src="js/whisper-lines.js"></script>
+<!-- Tribal council conversation. Lines first, then the reader, then the scene —
+     TribalQA.topics() assembles the four batches at first use, so the arrays only
+     need to exist by the time a council runs, not at parse. -->
+<script src="js/tribal-welcome.js"></script>
+<script src="js/tribal-qa-lines-a.js"></script>
+<script src="js/tribal-qa-lines-b.js"></script>
+<script src="js/tribal-qa-lines-c.js"></script>
+<script src="js/tribal-qa-lines-d.js"></script>
+<script src="js/tribal-read.js"></script>
+<script src="js/tribal-qa.js"></script>
+<script src="js/bloc-lines.js"></script>
+<script src="js/idols.js"></script>
+<script src="js/blocs.js"></script>
+<script src="js/survival.js"></script>
+<script src="js/camp-lines.js"></script>
+<script src="js/camp.js"></script>
+<script src="js/chal-juice.js"></script>
+<script src="js/chal-games-a.js"></script>
+<script src="js/chal-games-b.js"></script>
+<script src="js/chal-games-c.js"></script>
+<script src="js/chal-games-d.js"></script>
+<script src="js/chal-games-e.js"></script>
+<script src="js/chal-games-f.js"></script>
+<script src="js/chal-games-g.js"></script>
+<script src="js/chal-games-index.js"></script>
+<script src="js/chal-howto.js"></script>
+<script src="js/chal-shell.js"></script>
+<script src="js/dilemma-lines.js"></script>
+<script src="js/dilemma-pool-lines.js"></script>
+<script src="js/dilemmas.js"></script>
+<script src="js/dilemma-pool.js"></script>
+<script src="js/marooning.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/beach.js"></script>
+<script src="js/circle.js"></script>
+<script src="js/whisper.js"></script>
+<script src="js/reward.js"></script>
+<script src="js/scene3d.js"></script>
+<script src="js/beach3d-dressing.js"></script>
+<script src="js/beach3d.js"></script>
+<script src="js/stages3d.js"></script>
+<script src="js/beach-switch.js"></script>
+<script src="js/game.js"></script>
+<script src="js/journal.js"></script>
+<!-- three.js is an ES module and the rest of the project is plain scripts with
+     globals. This shim is the only module in the build: it imports three, hands the
+     namespace and the loaders to Island3D.boot, and gets out of the way.
+
+     NO IMPORT MAP. There was one, mapping the bare specifier "three", and it is the
+     most likely reason the island silently did not appear on a phone: import maps
+     need Safari 16.4+ and a recent Chrome, and when the map is unsupported the whole
+     module graph fails to resolve with no error the player can see — you just get the
+     flat beach and no explanation. The vendored example files are patched to import
+     ../three.module.js directly instead, so this needs no browser feature beyond ES
+     modules themselves.
+
+     Also boots on DOMContentLoaded with a window-load fallback rather than waiting
+     for load alone: if the document has already finished loading by the time this
+     module executes, a load listener never fires at all and 3D never starts. -->
+<script type="module">
+import * as THREE from "./vendor/three/three.module.js";
+import { GLTFLoader } from "./vendor/three/loaders/GLTFLoader.js";
+import { mergeGeometries } from "./vendor/three/utils/BufferGeometryUtils.js";
+const go = () => {
+  if (window.__islandBooted) return;
+  window.__islandBooted = true;
+  if (typeof Island3D !== "undefined") Island3D.boot(THREE, { GLTFLoader, mergeGeometries });
+};
+if (document.readyState === "complete" || document.readyState === "interactive") go();
+else { document.addEventListener("DOMContentLoaded", go); window.addEventListener("load", go); }
+</script>
+</body>
+</html>

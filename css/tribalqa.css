@@ -1,0 +1,128 @@
+/* Tribal council conversation.
+
+   Layout notes that are load-bearing rather than taste:
+
+   vmin everywhere, not vh. #app is rotated 90deg in portrait, so vh is the
+   PHYSICAL short edge on a phone held upright and everything sized in it
+   collapses. Every other stylesheet in this project has the same rule.
+
+   The whole screen is one column with the fire pinned at the top and the Next
+   button pinned at the bottom, so the button never moves between lines. A button
+   that shifts position as the text length changes is the single easiest way to
+   make a tap-to-advance scene feel bad — you end up chasing it down the screen. */
+
+/* The torch. .flame carries no intrinsic size — every container that uses one sets
+   its own, the way #tribal-fire does. Without these three rules the flames collapse
+   and all you see is the bare .torch-base, which reads as a floating brown brick.
+   Sized in px to match #screen-tribal's compact torch exactly, so walking from the
+   conversation to the vote screen does not visibly resize the fire. */
+#tqa-fire {
+  position: relative;
+  width: 62px;
+  height: 52px;
+  flex: 0 0 auto;
+  align-self: center;
+}
+#tqa-fire .flame { width: 28px; height: 32px; bottom: 15px; }
+#tqa-fire .flame.f2 { width: 17px; height: 21px; }
+#tqa-fire .torch-base { height: 20px; width: 10px; }
+
+#tqa-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  gap: 2.4vmin;
+}
+
+/* Portrait on the left for a castaway. Peff has no portrait — he is the voice of
+   the whole scene, and giving him a face made him just another castaway. */
+/* Wider than it first looked right at, and stretched rather than bottom-parked.
+   At 26vmin on a 344px-tall landscape phone the figure came out about 89px and read
+   as a doll standing next to the text instead of a person speaking. */
+#tqa-portrait {
+  flex: 0 0 auto;
+  width: 34vmin;
+  max-width: 34vmin;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  overflow: hidden;
+}
+#tqa-portrait:empty { display: none; }
+#tqa-portrait img {
+  max-height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: brightness(0.82) saturate(0.9);   /* firelight, not daylight */
+}
+
+#tqa-bubble {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 2.4vmin 3vmin;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2vmin;
+  background: rgba(10, 8, 14, 0.78);
+  border-color: rgba(255, 168, 84, 0.30);
+  /* A floor, so a four-word answer and a two-sentence one occupy the same box.
+     Without it the panel resized on every single tap and the whole scene felt
+     unstable to advance through — the text you are reading kept moving. Justified
+     to the top rather than centred so the first line always starts in the same
+     place no matter how long the line is. */
+  min-height: 26vmin;
+  justify-content: flex-start;
+}
+
+#tqa-who {
+  font-size: 2.1vmin;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ember, #ffa854);
+  opacity: 0.92;
+}
+#tqa-who:empty { display: none; }
+
+#tqa-text {
+  font-size: 3vmin;
+  line-height: 1.45;
+  /* Long answers must not push the Next button off a 344px-tall landscape phone,
+     which is the height the post-challenge screen had to be rebuilt for. */
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* Peff speaking: no portrait, text centred and given the whole width, so his
+   lines read as narration for the room rather than one person's opinion. */
+#screen-tribalqa.is-peff #tqa-bubble {
+  border-color: rgba(255, 168, 84, 0.5);
+  background: rgba(16, 10, 8, 0.82);
+}
+#screen-tribalqa.is-peff #tqa-text {
+  text-align: center;
+  font-size: 3.2vmin;
+}
+#screen-tribalqa.is-peff #tqa-who {
+  text-align: center;
+}
+
+/* The player's stance choice. Full-width stacked buttons — three of them, which
+   is why they can afford to be this tall and still fit. */
+#tqa-choices {
+  flex: 0 0 auto;
+  gap: 1.4vmin;
+}
+#tqa-choices:empty { display: none; }
+.tqa-opt {
+  width: 100%;
+  text-align: left;
+  padding: 1.8vmin 2.4vmin;
+  font-size: 2.5vmin;
+  white-space: normal;
+  line-height: 1.3;
+}
+
+#btn-tqa-next.hidden { display: none; }
